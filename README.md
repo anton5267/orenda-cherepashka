@@ -1,6 +1,6 @@
 # Orenda Cherepashka
 
-Full-stack clone with:
+Full-stack product with:
 - `React + Vite + TypeScript` frontend
 - `Express + SQLite` backend
 - working public site + admin panel
