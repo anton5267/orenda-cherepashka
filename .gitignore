@@ -1,0 +1,11 @@
+node_modules/
+dist/
+npm-debug.log*
+server-dist/
+data/
+.local/
+artifacts/
+.env
+.env.docker
+backups/
+*.tsbuildinfo
