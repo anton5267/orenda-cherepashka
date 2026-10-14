@@ -786,6 +786,113 @@ function ensureSeed() {
   seedTransaction();
 }
 
+function migrateSeedCatalogPrices() {
+  const migrationId = "catalog-prices-v1";
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS app_migrations (
+      id TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL
+    )
+  `);
+  if (db.prepare("SELECT id FROM app_migrations WHERE id = ?").get(migrationId)) {
+    return;
+  }
+
+  const timestamp = nowIso();
+  const applyMigration = db.transaction(() => {
+    const insertCategory = db.prepare(
+      `INSERT OR IGNORE INTO categories (id, name, slug, icon, sort_order, is_active, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    );
+    for (const category of seedCategories) {
+      insertCategory.run(
+        category.id,
+        category.name,
+        category.slug,
+        category.icon,
+        category.sortOrder,
+        boolToInt(category.isActive),
+        timestamp
+      );
+    }
+
+    const insertProduct = db.prepare(
+      `INSERT OR IGNORE INTO products (
+        id, name, slug, category_id, summary, details_json, logo,
+        is_hot, is_active, sort_order, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    const syncProduct = db.prepare(
+      `UPDATE products SET
+        name = ?, slug = ?, category_id = ?, summary = ?, details_json = ?,
+        logo = CASE WHEN ? = '' THEN logo ELSE ? END, sort_order = ?, updated_at = ?
+       WHERE id = ?`
+    );
+    const upsertPricing = db.prepare(
+      `INSERT INTO pricing_options (
+        id, product_id, label, price, currency, compare_at, sort_order, is_active
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+      ON CONFLICT(id) DO UPDATE SET
+        product_id = excluded.product_id, label = excluded.label,
+        price = excluded.price, currency = excluded.currency,
+        compare_at = excluded.compare_at, sort_order = excluded.sort_order,
+        is_active = 1`
+    );
+
+    for (const product of seedProducts) {
+      insertProduct.run(
+        product.id,
+        product.name,
+        product.slug,
+        product.categoryId,
+        product.summary,
+        JSON.stringify(product.details),
+        product.logo,
+        boolToInt(product.isHot, false),
+        boolToInt(product.isActive),
+        product.sortOrder,
+        timestamp
+      );
+      syncProduct.run(
+        product.name,
+        product.slug,
+        product.categoryId,
+        product.summary,
+        JSON.stringify(product.details),
+        product.logo,
+        product.logo,
+        product.sortOrder,
+        timestamp,
+        product.id
+      );
+
+      const pricingIds = product.pricingOptions.map((option, index) => {
+        const id = `${product.id}-plan-${index + 1}`;
+        upsertPricing.run(
+          id,
+          product.id,
+          option.label,
+          option.price,
+          option.currency,
+          option.compareAt,
+          option.sortOrder
+        );
+        return id;
+      });
+      const placeholders = pricingIds.map(() => "?").join(", ");
+      db.prepare(
+        `UPDATE pricing_options SET is_active = 0
+         WHERE product_id = ? AND id NOT IN (${placeholders})`
+      ).run(product.id, ...pricingIds);
+    }
+
+    db.prepare("INSERT INTO app_migrations (id, applied_at) VALUES (?, ?)")
+      .run(migrationId, timestamp);
+  });
+
+  applyMigration();
+}
+
 function readProductRows(includeInactive = false) {
   const sql = includeInactive
     ? "SELECT * FROM products ORDER BY sort_order ASC, name ASC"
@@ -953,6 +1060,10 @@ export function recordTelegramWebhookEvent(payload: {
     payload.errorMessage ?? null,
     nowIso()
   );
+  db.prepare(
+    `DELETE FROM telegram_webhook_events
+     WHERE id NOT IN (SELECT id FROM telegram_webhook_events ORDER BY id DESC LIMIT 500)`
+  ).run();
 }
 
 export function listTelegramWebhookEvents(limit = 30) {
@@ -1308,6 +1419,7 @@ function applyReviewBulkAction(payload: BulkPayload): BulkMutationResult {
 ensureSchema();
 ensureCompatibilityMigrations();
 ensureSeed();
+migrateSeedCatalogPrices();
 ensureLeadItemsBackfill();
 
 export function getSiteSettings() {

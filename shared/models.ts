@@ -91,6 +91,23 @@ export interface TelegramWebhookEvent {
   createdAt: string;
 }
 
+export interface TelegramWebhookMessage {
+  message_id: number;
+  date: number;
+  chat: {
+    id: number;
+    username?: string;
+  };
+  text?: string;
+  caption?: string;
+}
+
+export interface TelegramWebhookUpdate {
+  update_id?: number;
+  channel_post?: TelegramWebhookMessage;
+  edited_channel_post?: TelegramWebhookMessage;
+}
+
 export interface Review {
   id: string;
   name: string;

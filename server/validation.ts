@@ -1,5 +1,5 @@
 import { HttpError } from "./store.js";
-import type { PublicAnalyticsEventInput } from "../shared/models.js";
+import type { PublicAnalyticsEventInput, TelegramWebhookMessage, TelegramWebhookUpdate } from "../shared/models.js";
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -13,6 +13,53 @@ function textField(body: Record<string, unknown>, field: string, min: number, ma
   if (typeof value !== "string" || value.trim().length < min || value.trim().length > max) {
     throw new HttpError(400, `Поле "${field}" має містити від ${min} до ${max} символів.`);
   }
+}
+
+function validateTelegramMessage(value: unknown): TelegramWebhookMessage {
+  const message = record(value);
+  const chat = record(message.chat);
+  if (
+    !Number.isSafeInteger(message.message_id) ||
+    Number(message.message_id) < 1 ||
+    !Number.isSafeInteger(message.date) ||
+    Number(message.date) < 0 ||
+    !Number.isSafeInteger(chat.id)
+  ) {
+    throw new HttpError(400, "Некоректна структура Telegram-допису.");
+  }
+
+  for (const field of ["text", "caption"] as const) {
+    if (message[field] !== undefined && (typeof message[field] !== "string" || message[field].length > 4096)) {
+      throw new HttpError(400, "Текст Telegram-допису має некоректний формат.");
+    }
+  }
+  if (chat.username !== undefined && (typeof chat.username !== "string" || chat.username.length > 64)) {
+    throw new HttpError(400, "Некоректна назва Telegram-каналу.");
+  }
+
+  return {
+    message_id: Number(message.message_id),
+    date: Number(message.date),
+    chat: {
+      id: Number(chat.id),
+      ...(typeof chat.username === "string" ? { username: chat.username } : {})
+    },
+    ...(typeof message.text === "string" ? { text: message.text } : {}),
+    ...(typeof message.caption === "string" ? { caption: message.caption } : {})
+  };
+}
+
+export function validateTelegramWebhookUpdate(value: unknown): TelegramWebhookUpdate {
+  const body = record(value);
+  if (body.update_id !== undefined && (!Number.isSafeInteger(body.update_id) || Number(body.update_id) < 0)) {
+    throw new HttpError(400, "Некоректний ідентифікатор Telegram-події.");
+  }
+
+  const update: TelegramWebhookUpdate = {};
+  if (body.update_id !== undefined) update.update_id = Number(body.update_id);
+  if (body.channel_post !== undefined) update.channel_post = validateTelegramMessage(body.channel_post);
+  if (body.edited_channel_post !== undefined) update.edited_channel_post = validateTelegramMessage(body.edited_channel_post);
+  return update;
 }
 
 export function validateLeadPayload(value: unknown) {

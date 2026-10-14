@@ -38,7 +38,7 @@ function withPageMetadata(
     .replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`)
     .replace(/<meta\s+name="description"[^>]*\/>/, `<meta name="description" content="${escapeHtml(description)}" />`)
     .replace(/<link\s+rel="canonical"[^>]*\/>/, `<link rel="canonical" href="${escapeHtml(url)}" />`)
-    .replace(/<meta\s+property="og:type"[^>]*\/>/, '<meta property="og:type" content="website" />')
+    .replace(/<meta\s+property="og:type"[^>]*\/>/, `<meta property="og:type" content="${Array.isArray(schema) ? "product" : "website"}" />`)
     .replace(/<meta\s+property="og:title"[^>]*\/>/, `<meta property="og:title" content="${escapeHtml(title)}" />`)
     .replace(/<meta\s+property="og:description"[^>]*\/>/, `<meta property="og:description" content="${escapeHtml(description)}" />`)
     .replace(/<meta\s+property="og:url"[^>]*\/>/, `<meta property="og:url" content="${escapeHtml(url)}" />`)
@@ -46,10 +46,11 @@ function withPageMetadata(
     .replace(/("@type":\s*"Organization",[\s\S]*?"url":\s*)"[^"]+"/, `$1"${pagesBaseUrl}/"`);
 
   if (schema) {
-    page = page.replace(
-      "</head>",
-      `    <script type="application/ld+json">${safeJson(schema)}</script>\n  </head>`
-    );
+    const schemas = Array.isArray(schema) ? schema : [schema];
+    const scripts = schemas
+      .map((item) => `    <script type="application/ld+json">${safeJson(item)}</script>`)
+      .join("\n");
+    page = page.replace("</head>", `${scripts}\n  </head>`);
   }
 
   return page;
@@ -88,7 +89,21 @@ for (const product of seedProducts.filter((item) => item.isActive)) {
       url
     }))
   };
-  const productHtml = withPageMetadata(sourceHtml, { title, description, url, schema: productSchema });
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Головна", item: rootUrl },
+      { "@type": "ListItem", position: 2, name: "Каталог", item: `${rootUrl}#catalog` },
+      { "@type": "ListItem", position: 3, name: product.name, item: url }
+    ]
+  };
+  const productHtml = withPageMetadata(sourceHtml, {
+    title,
+    description,
+    url,
+    schema: [productSchema, breadcrumbSchema]
+  });
   const productPath = resolve(distDir, "p", product.slug, "index.html");
   await mkdir(dirname(productPath), { recursive: true });
   await writeFile(productPath, productHtml);

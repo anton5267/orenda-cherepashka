@@ -1,9 +1,11 @@
 const baseUrl =
   process.env.SELF_QA_URL ??
   "https://orenda-cherepashka-webbs.fly.dev";
+const baseOrigin = new URL(baseUrl).origin;
 
 const headers = {
   "content-type": "application/json",
+  Origin: baseOrigin,
   "ngrok-skip-browser-warning": "true"
 };
 
@@ -18,6 +20,7 @@ async function request(path, options = {}) {
     ...options,
     headers: {
       "ngrok-skip-browser-warning": "true",
+      Origin: baseOrigin,
       ...(options.body ? { "content-type": "application/json" } : {}),
       ...(options.headers ?? {})
     }

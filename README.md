@@ -149,6 +149,8 @@ The Pages build uses `VITE_API_BASE_URL` to call the Render API for live public 
 
 The public catalog remains available on GitHub Pages when the API is offline. In that state, live admin data and saved leads are unavailable; the form explicitly offers a Telegram draft instead of claiming the lead was saved. The Render service was last observed as owner-suspended, so the owner must resume it in the Render dashboard before expecting `/api/health` to return `200`. Keep the service's persistent disk attached and set a strong `ADMIN_PASSWORD` (12+ characters) in Render environment settings; never put credentials in this repository.
 
+On the next API start, the one-time `catalog-prices-v1` SQLite migration reconciles the 35 supplied services and all 62 listed price options with the reviewed catalog. It preserves admin-created products and each seeded product's active/hidden state; obsolete extra plans are deactivated rather than deleted, keeping existing order snapshots intact.
+
 GitHub Pages reads the latest public posts from `@arenda_cherepashka`: its workflow fetches the channel before each build and runs every 30 minutes. Use **Actions → Deploy GitHub Pages → Run workflow** to refresh it immediately. This feed needs no bot token. When Render is available, Pages submits leads to its API and they appear in the admin panel. If the API is unavailable, the form clearly says the lead was not saved and offers a prepared Telegram message to `@yts_nnn` as a fallback.
 
 Seed testimonials are intentionally empty. The public page links to the seller's Telegram reviews channel until genuine, moderated customer feedback is added in the admin panel.

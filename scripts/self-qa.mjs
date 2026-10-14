@@ -5,6 +5,7 @@ import { chromium } from "playwright";
 const baseUrl =
   process.env.SELF_QA_URL ??
   "https://orenda-cherepashka-webbs.fly.dev";
+const baseOrigin = new URL(baseUrl).origin;
 const outputDir = resolve("artifacts", "self-qa");
 
 mkdirSync(outputDir, { recursive: true });
@@ -24,6 +25,7 @@ async function requestJson(path, options = {}) {
         ...options,
         headers: {
           "ngrok-skip-browser-warning": "true",
+          Origin: baseOrigin,
           ...(options.body ? { "content-type": "application/json" } : {}),
           ...(options.headers ?? {})
         }
@@ -101,7 +103,10 @@ async function checkProductStructuredData() {
     /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g
   )].map((match) => JSON.parse(match[1]));
   const schema = schemas.find((item) => item["@type"] === "Product");
+  const breadcrumbs = schemas.find((item) => item["@type"] === "BreadcrumbList");
   assert(schema, "Product page did not include Product JSON-LD structured data.");
+  assert(breadcrumbs?.itemListElement?.length === 3,
+    "Server product page did not include BreadcrumbList structured data.");
   assert(Array.isArray(schema.offers) && schema.offers.length === 2,
     `Product JSON-LD did not expose both active Gmail price options: ${JSON.stringify(schema.offers)}`);
   assert(schema.offers.every((offer) => offer.priceCurrency === "USD"),

@@ -113,6 +113,7 @@ try {
 
   await page.locator(".product-card").first().waitFor();
   assert.equal(await page.locator(".product-card").count(), 35, "Pages catalog did not render all products.");
+  assert.equal(await page.locator(".product-card").first().getByText("Наявність уточнюйте").count(), 1);
   const gmailCard = page.locator(".product-card").filter({ hasText: "Gmail пошта" }).first();
   assert.equal(await gmailCard.locator(".plan-chip").filter({ hasText: "$1.90" }).count(), 1);
   assert.equal(await gmailCard.locator(".plan-chip").filter({ hasText: "$1.70" }).count(), 1);
@@ -172,9 +173,13 @@ try {
   const productHtml = await (await fetch(`${baseUrl}p/grok-super-personal/`)).text();
   assert.match(productHtml, /<title>🏷 Grok Super \[особистий\] — Orenda Cherepashka<\/title>/);
   assert.match(productHtml, /rel="canonical" href="https:\/\/anton5267\.github\.io\/orenda-cherepashka\/p\/grok-super-personal\//);
-  const productSchema = [...productHtml.matchAll(
+  const productSchemas = [...productHtml.matchAll(
     /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g
-  )].map((match) => JSON.parse(match[1])).find((schema) => schema["@type"] === "Product");
+  )].map((match) => JSON.parse(match[1]));
+  const productSchema = productSchemas.find((schema) => schema["@type"] === "Product");
+  const breadcrumbSchema = productSchemas.find((schema) => schema["@type"] === "BreadcrumbList");
+  assert.equal(breadcrumbSchema?.itemListElement?.length, 3, "Product page omitted breadcrumb JSON-LD.");
+  assert.match(productHtml, /<meta property="og:type" content="product" \/>/);
   assert.equal(productSchema?.offers?.length, 2, "Grok product metadata should contain both price offers.");
   assert.equal(productSchema.offers[1].price, 2200, "Grok 3-month package metadata has the wrong total price.");
   assert.equal(productSchema.offers[1].priceCurrency, "UAH");

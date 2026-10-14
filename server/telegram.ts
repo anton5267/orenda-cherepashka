@@ -3,27 +3,8 @@ import {
   recordTelegramWebhookEvent,
   upsertTelegramNews
 } from "./store.js";
-import type { Lead } from "../shared/models.js";
+import type { Lead, TelegramWebhookUpdate } from "../shared/models.js";
 import { formatCurrencyAmount } from "../shared/priceFormat.js";
-
-type TelegramChat = {
-  id: number;
-  username?: string;
-};
-
-type TelegramMessage = {
-  message_id: number;
-  date: number;
-  chat: TelegramChat;
-  text?: string;
-  caption?: string;
-};
-
-type TelegramUpdate = {
-  update_id?: number;
-  channel_post?: TelegramMessage;
-  edited_channel_post?: TelegramMessage;
-};
 
 function cleanTelegramText(value: string) {
   return value
@@ -37,10 +18,12 @@ function getChannelKey() {
   return env.telegramChannelId.replace(/^@/, "").trim().toLowerCase();
 }
 
-function isAllowedChannel(chat: TelegramChat) {
+function isAllowedChannel(
+  chat: NonNullable<TelegramWebhookUpdate["channel_post"]>["chat"]
+) {
   const configured = getChannelKey();
   if (!configured) {
-    return true;
+    return false;
   }
 
   return (
@@ -49,7 +32,7 @@ function isAllowedChannel(chat: TelegramChat) {
   );
 }
 
-function sourceUrlForMessage(message: TelegramMessage) {
+function sourceUrlForMessage(message: NonNullable<TelegramWebhookUpdate["channel_post"]>) {
   if (message.chat.username) {
     return `https://t.me/${message.chat.username}/${message.message_id}`;
   }
@@ -69,7 +52,7 @@ function splitNewsText(rawText: string) {
   };
 }
 
-function eventDetails(update: TelegramUpdate) {
+function eventDetails(update: TelegramWebhookUpdate) {
   const message = update.channel_post ?? update.edited_channel_post ?? null;
   return {
     message,
@@ -80,7 +63,7 @@ function eventDetails(update: TelegramUpdate) {
   };
 }
 
-export async function handleTelegramUpdate(update: TelegramUpdate) {
+export async function handleTelegramUpdate(update: TelegramWebhookUpdate) {
   const details = eventDetails(update);
 
   if (!details.message) {
@@ -103,7 +86,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       status: "ignored",
       errorMessage: "Channel is not configured for this webhook."
     });
-    return { ignored: true };
+    return { ignored: true, forbidden: true };
   }
 
   if (!env.telegramAutoPublish) {

@@ -52,7 +52,8 @@ import {
   validateLeadPayload,
   validatePublicAnalyticsEvent,
   validateNewsPayload,
-  validateSettingsPayload
+  validateSettingsPayload,
+  validateTelegramWebhookUpdate
 } from "./validation.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
@@ -194,12 +195,18 @@ function clearLoginFailures(request: express.Request) {
 
 function sameOrigin(request: express.Request) {
   const origin = request.get("origin");
-  if (!origin) {
-    return true;
+  const requestOrigin = `${request.protocol}://${request.get("host")}`;
+  if (origin) {
+    return origin === requestOrigin;
   }
 
-  const requestOrigin = `${request.protocol}://${request.get("host")}`;
-  return origin === requestOrigin;
+  const referer = request.get("referer");
+  if (!referer) return false;
+  try {
+    return new URL(referer).origin === requestOrigin;
+  } catch {
+    return false;
+  }
 }
 
 app.use((_request, response, next) => {
@@ -336,7 +343,11 @@ app.post(
       return;
     }
 
-    const result = await handleTelegramUpdate(request.body);
+    const result = await handleTelegramUpdate(validateTelegramWebhookUpdate(request.body));
+    if (result.forbidden) {
+      response.status(403).json({ message: "Telegram-допис надійшов не з налаштованого каналу." });
+      return;
+    }
     response.status(200).json({ ok: true, ...result });
   })
 );
@@ -698,8 +709,19 @@ if (process.env.NODE_ENV === "production") {
           : undefined
       };
       const baseUrl = env.publicSiteUrl.replace(/\/$/, "");
+      const productUrl = `${baseUrl}/p/${product.slug}`;
+      const breadcrumbSchema = {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Головна", item: `${baseUrl}/` },
+          { "@type": "ListItem", position: 2, name: "Каталог", item: `${baseUrl}/#catalog` },
+          { "@type": "ListItem", position: 3, name: product.name, item: productUrl }
+        ]
+      };
       const meta = [
-        `<script type="application/ld+json">${safeJson(productSchema)}</script>`
+        `<script type="application/ld+json">${safeJson(productSchema)}</script>`,
+        `<script type="application/ld+json">${safeJson(breadcrumbSchema)}</script>`
       ].join("\n    ");
       response.type("html").send(html.replace("</head>", `    ${meta}\n  </head>`));
     } catch (error) {

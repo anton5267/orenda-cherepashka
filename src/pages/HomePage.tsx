@@ -1599,7 +1599,7 @@ export function HomePage() {
 
                           <div className="product-note-row">
                             <span>{getDisplayPlans(product).length} тарифів на вибір</span>
-                            <span>{product.isHot ? "Популярний вибір" : "Доступно онлайн"}</span>
+                            <span>Наявність уточнюйте</span>
                           </div>
 
                           <div className="card-footer">

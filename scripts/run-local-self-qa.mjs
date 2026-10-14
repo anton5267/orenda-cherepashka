@@ -129,6 +129,13 @@ async function verifyPagesApiCors() {
   });
   assert.equal(adminPreflight.status, 403, "Cross-origin admin access was not blocked.");
 
+  const missingOriginAdminMutation = await fetch(`${baseUrl}/api/admin/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: "wrong-password" })
+  });
+  assert.equal(missingOriginAdminMutation.status, 403, "Admin mutation without a verifiable origin was accepted.");
+
   const proxiedSameOriginLogin = await fetch(`${baseUrl}/api/admin/login`, {
     method: "POST",
     headers: {
@@ -146,6 +153,7 @@ async function verifyPagesApiCors() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Origin: `https://${host}:${port}`,
         "X-Forwarded-Proto": "https",
         "X-Forwarded-For": `198.51.100.${attempt}, ${effectiveClientIp}`
       },
@@ -158,12 +166,79 @@ async function verifyPagesApiCors() {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Origin: `https://${host}:${port}`,
       "X-Forwarded-Proto": "https",
       "X-Forwarded-For": `198.51.100.99, ${effectiveClientIp}`
     },
     body: JSON.stringify({ password: "wrong-password" })
   });
   assert.equal(spoofedRetry.status, 429, "Changing the untrusted forwarded IP bypassed the login rate limit.");
+}
+
+async function verifyTelegramWebhook() {
+  const secret = "self-qa-telegram-webhook-secret";
+  const headers = {
+    "Content-Type": "application/json",
+    "X-Telegram-Bot-Api-Secret-Token": secret
+  };
+  const requestUpdate = (update, requestHeaders = headers) =>
+    fetch(`${baseUrl}/api/telegram/webhook`, {
+      method: "POST",
+      headers: requestHeaders,
+      body: JSON.stringify(update)
+    });
+
+  const rejectedSecret = await requestUpdate(
+    {},
+    { "Content-Type": "application/json", "X-Telegram-Bot-Api-Secret-Token": "wrong-secret" }
+  );
+  assert.equal(rejectedSecret.status, 403, "Telegram webhook accepted an invalid secret.");
+
+  const invalidMessage = await requestUpdate({ channel_post: { message_id: "bad" } });
+  assert.equal(invalidMessage.status, 400, "Telegram webhook accepted a malformed post.");
+
+  const foreignChannel = await requestUpdate({
+    update_id: 991001,
+    channel_post: {
+      message_id: 991001,
+      date: Math.floor(Date.now() / 1000),
+      chat: { id: -1001999999999, username: "untrusted_channel" },
+      text: "Must not appear on the site"
+    }
+  });
+  assert.equal(foreignChannel.status, 403, "Telegram webhook did not reject an unrelated channel.");
+
+  const post = {
+    update_id: 991002,
+    channel_post: {
+      message_id: 991002,
+      date: Math.floor(Date.now() / 1000),
+      chat: { id: -1001888888888, username: "arenda_cherepashka" },
+      text: "QA webhook post\nFirst version"
+    }
+  };
+  const published = await requestUpdate(post);
+  assert.equal(published.status, 200, "Configured Telegram channel post was not published.");
+  const duplicate = await requestUpdate(post);
+  assert.equal(duplicate.status, 200, "Repeated Telegram webhook delivery was not accepted idempotently.");
+
+  const editedPost = {
+    update_id: 991003,
+    edited_channel_post: {
+      ...post.channel_post,
+      text: "QA webhook post edited\nUpdated version"
+    }
+  };
+  const edited = await requestUpdate(editedPost);
+  assert.equal(edited.status, 200, "Edited Telegram post was not accepted.");
+
+  const newsResponse = await fetch(`${baseUrl}/api/news`);
+  const newsItems = await newsResponse.json();
+  const matches = newsItems.filter((item) => item.sourceMessageId === 991002);
+  assert.equal(matches.length, 1, "Duplicate Telegram delivery created more than one news item.");
+  assert.equal(matches[0].title, "QA webhook post edited", "Telegram edit did not update its existing news item.");
+  assert.equal(matches[0].content, "Updated version", "Edited Telegram content was not saved.");
+  console.log("Telegram webhook checks passed: secret, channel, idempotency, and edits.");
 }
 
 function runCommand(command, args, env = process.env) {
@@ -228,7 +303,10 @@ async function main() {
       DATABASE_PATH: resolve(tempDataDir, "site.db"),
       DATABASE_BACKUP_DIR: resolve(tempDataDir, "backups"),
       PUBLIC_SITE_URL: baseUrl,
-      PUBLIC_API_ALLOWED_ORIGINS: "https://anton5267.github.io"
+      PUBLIC_API_ALLOWED_ORIGINS: "https://anton5267.github.io",
+      TELEGRAM_WEBHOOK_SECRET: "self-qa-telegram-webhook-secret",
+      TELEGRAM_CHANNEL_ID: "@arenda_cherepashka",
+      TELEGRAM_AUTO_PUBLISH: "true"
     }
   });
   forwardStream(serverProcess.stdout, stdoutLog, process.stdout);
@@ -253,6 +331,7 @@ async function main() {
     await waitForHealth(serverProcess);
     await verifyPagesApiCors();
     console.log("GitHub Pages API CORS checks passed.");
+    await verifyTelegramWebhook();
     const qaEnv = {
       ...process.env,
       SELF_QA_URL: baseUrl
