@@ -1858,8 +1858,8 @@ async function runAdminChecks(browser) {
     .first();
   await logoutFailureNotice.waitFor({ timeout: 15000 });
   await logoutFailureNotice.getByRole("button", { name: "Повторити вихід" }).click();
+  await page.waitForURL(/\/admin\/login/, { timeout: 30000 });
   await page.unroute("**/api/admin/logout");
-  await page.waitForURL(/\/admin\/login/, { timeout: 15000 });
   await desktopContext.close();
 
   const mobileContext = await browser.newContext({
