@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: orenda-cherepashka
+    runtime: docker
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeploy: true
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATABASE_PATH
+        value: /app/data/site.db
+      - key: SECURE_COOKIES
+        value: true
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_PASSWORD
+        sync: false
+    disk:
+      name: orenda-data
+      mountPath: /app/data
+      sizeGB: 1

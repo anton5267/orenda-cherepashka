@@ -123,3 +123,13 @@ GitHub Actions workflow:
 ## Deployment Note
 
 The old Fly deployment path is currently blocked by Fly billing/trial state. The Docker self-host path is the supported fallback and has been verified locally end-to-end.
+
+## Public deployment from GitHub
+
+The repository includes `render.yaml` for a public Docker deployment on Render. After connecting this GitHub repository in Render, create the Blueprint and set the `ADMIN_PASSWORD` secret when prompted. The service uses:
+
+- `/api/health` as its health check
+- a persistent disk mounted at `/app/data` for SQLite
+- `SECURE_COOKIES=true` and a generated `SESSION_SECRET` in production
+
+The custom domain can then be attached to the Render service from its dashboard. GitHub Actions runs the typecheck, production build, and local self-QA on every push and pull request.
