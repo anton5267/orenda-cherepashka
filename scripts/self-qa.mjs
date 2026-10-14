@@ -1564,7 +1564,7 @@ async function runPublicChecks(browser) {
     initialTheme && toggledTheme && initialTheme !== toggledTheme,
     "Theme toggle did not change the document theme."
   );
-  await page.reload({ waitUntil: "networkidle" });
+  await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(
     (expectedTheme) => document.documentElement.dataset.theme === expectedTheme,
     toggledTheme
