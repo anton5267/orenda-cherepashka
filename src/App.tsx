@@ -20,6 +20,7 @@ import {
   AdminReviewsPage,
   AdminSettingsPage
 } from "./pages/admin/AdminPages";
+import { staticSiteBasePath } from "./api";
 
 const isStaticSite = import.meta.env.VITE_STATIC_SITE === "true";
 
@@ -47,7 +48,7 @@ const router = createBrowserRouter(
       <Route path="*" element={<Navigate to="/" replace />} />
     </>
   ),
-  { basename: isStaticSite ? "/orenda-cherepashka" : undefined }
+  { basename: isStaticSite ? staticSiteBasePath : undefined }
 );
 
 function App() {

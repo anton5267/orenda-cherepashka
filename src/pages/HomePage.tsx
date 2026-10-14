@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { api, ApiError, isStaticSite } from "../api";
+import { api, ApiError, isStaticSite, staticSiteBasePath } from "../api";
 import { defaultSiteSettings } from "../../shared/siteDefaults";
 import type {
   Category,
@@ -272,6 +272,9 @@ export function HomePage() {
   const { pushToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const leadRef = useRef<HTMLFormElement | null>(null);
+  const startedOnStaticPagesPathRef = useRef(
+    isStaticSite && window.location.pathname.startsWith(staticSiteBasePath)
+  );
   const lastUrlSelectionRef = useRef("");
   const catalogRefreshTokenRef = useRef(0);
   const publicRefreshTokenRef = useRef(0);
@@ -304,6 +307,22 @@ export function HomePage() {
     productId: "",
     pricingOptionId: ""
   });
+
+  useEffect(() => {
+    if (
+      !isStaticSite ||
+      !startedOnStaticPagesPathRef.current ||
+      window.location.pathname !== "/"
+    ) {
+      return;
+    }
+
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${staticSiteBasePath}${window.location.search}${window.location.hash}`
+    );
+  }, [searchParams]);
 
   const activeCategory = searchParams.get("category") ?? "all";
   const searchTerm = searchParams.get("q") ?? "";

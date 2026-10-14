@@ -53,6 +53,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
 
 const defaultGetTimeoutMs = 10000;
 const defaultMutationTimeoutMs = 15000;
+export const staticSiteBasePath = "/orenda-cherepashka";
 export const isStaticSite = import.meta.env.VITE_STATIC_SITE === "true";
 
 function staticPublicRequest<T>(path: string, method: string): T {
