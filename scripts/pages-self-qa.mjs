@@ -27,6 +27,19 @@ try {
   const response = await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
   assert.equal(response?.status(), 200, "GitHub Pages root did not return HTTP 200.");
 
+  const homeHtml = await (await fetch(baseUrl)).text();
+  assert.match(homeHtml, /name="robots" content="index,follow"/);
+  assert.match(homeHtml, /rel="canonical" href="https:\/\/anton5267\.github\.io\/orenda-cherepashka\//);
+  assert.doesNotMatch(homeHtml, /orenda-cherepashka\.shop/);
+  const robotsResponse = await fetch(`${baseUrl}robots.txt`);
+  const robotsText = await robotsResponse.text();
+  assert.equal(robotsResponse.status, 200, "GitHub Pages robots.txt did not return HTTP 200.");
+  assert.match(robotsText, /Sitemap: https:\/\/anton5267\.github\.io\/orenda-cherepashka\/sitemap\.xml/);
+  const sitemapResponse = await fetch(`${baseUrl}sitemap.xml`);
+  const sitemapText = await sitemapResponse.text();
+  assert.equal(sitemapResponse.status, 200, "GitHub Pages sitemap.xml did not return HTTP 200.");
+  assert.equal((sitemapText.match(/<loc>/g) ?? []).length, 40, "Sitemap should contain home, four legal pages and 35 products.");
+
   await page.locator(".product-card").first().waitFor();
   assert.equal(await page.locator(".product-card").count(), 35, "Pages catalog did not render all products.");
   const gmailCard = page.locator(".product-card").filter({ hasText: "Gmail пошта" }).first();
@@ -53,6 +66,23 @@ try {
   });
   assert.equal(productResponse?.status(), 200, "Static product deep link did not return HTTP 200.");
   await page.getByRole("heading", { name: /Grok Super/i }).first().waitFor();
+  const productHtml = await (await fetch(`${baseUrl}p/grok-super-personal/`)).text();
+  assert.match(productHtml, /<title>🏷 Grok Super \[особистий\] — Orenda Cherepashka<\/title>/);
+  assert.match(productHtml, /rel="canonical" href="https:\/\/anton5267\.github\.io\/orenda-cherepashka\/p\/grok-super-personal\//);
+  const productSchema = [...productHtml.matchAll(
+    /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g
+  )].map((match) => JSON.parse(match[1])).find((schema) => schema["@type"] === "Product");
+  assert.equal(productSchema?.offers?.length, 2, "Grok product metadata should contain both price offers.");
+  assert.equal(productSchema.offers[1].price, 2200, "Grok 3-month package metadata has the wrong total price.");
+  assert.equal(productSchema.offers[1].priceCurrency, "UAH");
+  assert.equal("availability" in productSchema.offers[1], false, "Product metadata claimed unverified stock.");
+
+  const gmailHtml = await (await fetch(`${baseUrl}p/gmail-mailbox/`)).text();
+  const gmailSchema = [...gmailHtml.matchAll(
+    /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g
+  )].map((match) => JSON.parse(match[1])).find((schema) => schema["@type"] === "Product");
+  assert(gmailSchema?.offers?.every((offer) => offer.priceCurrency === "USD"));
+  assert.equal((await fetch(`${baseUrl}legal/privacy/`)).status, 200, "Legal page deep link did not return HTTP 200.");
   assert.deepEqual(errors, [], "Pages reported client-side errors.");
 
   console.log(JSON.stringify({
@@ -60,6 +90,8 @@ try {
     productCount: 35,
     staticNewsStatus: feedStatus,
     expiredPromotionsMarked: true,
+    productSeo: "accurate currency, package price and canonical URL",
+    robotsAndSitemap: "200",
     telegramLinks: "contact, news, reviews",
     productDeepLink: "ok",
     mobileOverflow: false

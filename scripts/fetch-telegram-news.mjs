@@ -96,7 +96,7 @@ function parsePosts(html) {
 }
 
 const response = await fetch(feedUrl, {
-  headers: { "user-agent": "OrendaCherepashka-NewsFeed/1.0 (+https://orenda-cherepashka.shop)" },
+  headers: { "user-agent": "OrendaCherepashka-NewsFeed/1.0 (+https://anton5267.github.io/orenda-cherepashka/)" },
   signal: AbortSignal.timeout(15000)
 });
 

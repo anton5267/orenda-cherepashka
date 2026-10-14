@@ -128,7 +128,8 @@ async function main() {
       ADMIN_PASSWORD_HASH:
         process.env.SELF_QA_LOCAL_ADMIN_PASSWORD_HASH ?? hashSync("admin1234", 10),
       DATABASE_PATH: resolve(tempDataDir, "site.db"),
-      DATABASE_BACKUP_DIR: resolve(tempDataDir, "backups")
+      DATABASE_BACKUP_DIR: resolve(tempDataDir, "backups"),
+      PUBLIC_SITE_URL: baseUrl
     }
   });
   forwardStream(serverProcess.stdout, stdoutLog, process.stdout);

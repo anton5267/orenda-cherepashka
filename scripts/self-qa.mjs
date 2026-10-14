@@ -94,6 +94,8 @@ async function checkProductStructuredData() {
   });
   const html = await response.text();
   assert(response.ok, `Gmail product route returned ${response.status}.`);
+  assert(html.includes(`<link rel="canonical" href="${baseUrl}/p/${gmailProduct.slug}" />`),
+    "Server product canonical URL did not use the configured public site URL.");
 
   const schemas = [...html.matchAll(
     /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g
@@ -106,6 +108,14 @@ async function checkProductStructuredData() {
     "USD product offers were published with the wrong currency.");
   assert(schema.offers.every((offer) => !("availability" in offer)),
     "Product JSON-LD claimed stock availability without an inventory source.");
+
+  const robotsResponse = await fetch(`${baseUrl}/robots.txt`);
+  assert(robotsResponse.ok && (await robotsResponse.text()).includes(`${baseUrl}/sitemap.xml`),
+    "Server robots.txt did not reference the sitemap.");
+  const sitemapResponse = await fetch(`${baseUrl}/sitemap.xml`);
+  const sitemap = await sitemapResponse.text();
+  assert(sitemapResponse.ok && sitemap.includes(`${baseUrl}/p/${gmailProduct.slug}`),
+    "Server sitemap did not contain the product URL.");
 }
 
 async function revealSections(page) {

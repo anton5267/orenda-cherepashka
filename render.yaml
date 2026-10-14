@@ -18,8 +18,6 @@ services:
         value: /app/data/backups
       - key: SECURE_COOKIES
         value: true
-      - key: PUBLIC_SITE_URL
-        value: https://orenda-cherepashka.shop
       - key: TELEGRAM_AUTO_PUBLISH
         value: true
       - key: TELEGRAM_CHANNEL_ID

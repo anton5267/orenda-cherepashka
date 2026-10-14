@@ -536,6 +536,29 @@ function safeJson(value: unknown) {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
+function withPublicSiteBase(
+  html: string,
+  pathname = "/",
+  metadata?: { title: string; description: string }
+) {
+  const baseUrl = env.publicSiteUrl.replace(/\/$/, "");
+  const pageUrl = `${baseUrl}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
+  let page = html
+    .replace(/<link\s+rel="canonical"[^>]*\/>/, `<link rel="canonical" href="${escapeXml(pageUrl)}" />`)
+    .replace(/<meta\s+property="og:url"[^>]*\/>/, `<meta property="og:url" content="${escapeXml(pageUrl)}" />`)
+    .replace(/<meta\s+property="og:type"[^>]*\/>/, `<meta property="og:type" content="${pathname === "/" ? "website" : "product"}" />`)
+    .replace(/("@type":\s*"Organization",[\s\S]*?"url":\s*)"[^"]+"/, `$1"${baseUrl}/"`);
+
+  if (metadata) {
+    page = page
+      .replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeXml(metadata.title)}</title>`)
+      .replace(/<meta\s+property="og:title"[^>]*\/>/, `<meta property="og:title" content="${escapeXml(metadata.title)}" />`)
+      .replace(/<meta\s+property="og:description"[^>]*\/>/, `<meta property="og:description" content="${escapeXml(metadata.description)}" />`);
+  }
+
+  return page;
+}
+
 app.get("/sitemap.xml", (_request, response) => {
   const baseUrl = env.publicSiteUrl.replace(/\/$/, "");
   const urls = [
@@ -570,12 +593,16 @@ app.get("/robots.txt", (_request, response) => {
 });
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(distDir));
+  app.use(express.static(distDir, { index: false }));
 
   app.get("/p/:slug", (request, response, next) => {
     try {
       const product = getProductBySlug(getRouteParam(request, "slug"));
-      const html = readFileSync(resolve(distDir, "index.html"), "utf8");
+      const html = withPublicSiteBase(
+        readFileSync(resolve(distDir, "index.html"), "utf8"),
+        `/p/${product.slug}`,
+        { title: `${product.name} — Orenda Cherepashka`, description: product.summary }
+      );
       const activePlans = product.pricingOptions
         .filter((plan) => plan.isActive)
         .sort((left, right) => left.sortOrder - right.sortOrder);
@@ -597,18 +624,9 @@ if (process.env.NODE_ENV === "production") {
       };
       const baseUrl = env.publicSiteUrl.replace(/\/$/, "");
       const meta = [
-        `<link rel="canonical" href="${escapeXml(`${baseUrl}/p/${product.slug}`)}" />`,
-        `<meta property="og:type" content="product" />`,
-        `<meta property="og:title" content="${escapeXml(product.name)} — Orenda Cherepashka" />`,
-        `<meta property="og:description" content="${escapeXml(product.summary)}" />`,
-        `<meta property="og:url" content="${escapeXml(`${baseUrl}/p/${product.slug}`)}" />`,
         `<script type="application/ld+json">${safeJson(productSchema)}</script>`
       ].join("\n    ");
-      response.type("html").send(
-        html
-          .replace(/<title>[^<]*<\/title>/, `<title>${escapeXml(product.name)} — Orenda Cherepashka</title>`)
-          .replace("</head>", `    ${meta}\n  </head>`)
-      );
+      response.type("html").send(html.replace("</head>", `    ${meta}\n  </head>`));
     } catch (error) {
       if (error instanceof HttpError) {
         response.status(error.statusCode).send("Товар не знайдено.");
@@ -624,7 +642,9 @@ if (process.env.NODE_ENV === "production") {
       return;
     }
 
-    response.sendFile(resolve(distDir, "index.html"));
+    response.type("html").send(
+      withPublicSiteBase(readFileSync(resolve(distDir, "index.html"), "utf8"))
+    );
   });
 }
 
