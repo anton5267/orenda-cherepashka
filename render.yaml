@@ -18,6 +18,10 @@ services:
         value: /app/data/backups
       - key: SECURE_COOKIES
         value: true
+      - key: PUBLIC_SITE_URL
+        value: https://anton5267.github.io/orenda-cherepashka
+      - key: PUBLIC_API_ALLOWED_ORIGINS
+        value: https://anton5267.github.io
       - key: TELEGRAM_AUTO_PUBLISH
         value: true
       - key: TELEGRAM_CHANNEL_ID

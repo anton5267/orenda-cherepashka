@@ -19,11 +19,69 @@ assert(address && typeof address !== "string", "Pages smoke server did not expos
 
 const browser = await chromium.launch({ headless: true });
 const errors = [];
+const apiSmokeEnabled = process.env.PAGES_API_SMOKE === "true";
+let mockedLeadPostCount = 0;
+
+async function installPagesApiMock(page, pageOrigin) {
+  if (!apiSmokeEnabled) return;
+
+  await page.route("https://orenda-cherepashka.onrender.com/api/**", async (route) => {
+    const request = route.request();
+    const requestUrl = new URL(request.url());
+    const origin = request.headers().origin ?? pageOrigin;
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Content-Type": "application/json"
+    };
+
+    if (request.method() === "OPTIONS") {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+
+    if (request.method() === "POST" && requestUrl.pathname === "/api/leads") {
+      mockedLeadPostCount += 1;
+      if (mockedLeadPostCount === 1) {
+        await route.fulfill({
+          status: 503,
+          headers: corsHeaders,
+          body: JSON.stringify({ message: "Mock server unavailable." })
+        });
+        return;
+      }
+
+      const payload = JSON.parse(request.postData() ?? "{}");
+      await route.fulfill({
+        status: 201,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          id: "pages-api-smoke-lead",
+          name: payload.name,
+          contact: payload.contact,
+          message: payload.message,
+          items: [],
+          status: "new",
+          createdAt: new Date().toISOString()
+        })
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 503,
+      headers: corsHeaders,
+      body: JSON.stringify({ message: "Mock public API is offline." })
+    });
+  });
+}
 
 try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   page.on("pageerror", (error) => errors.push(error.message));
   const baseUrl = `http://127.0.0.1:${address.port}/orenda-cherepashka/`;
+  await installPagesApiMock(page, new URL(baseUrl).origin);
   const response = await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
   assert.equal(response?.status(), 200, "GitHub Pages root did not return HTTP 200.");
 
@@ -61,6 +119,29 @@ try {
     "Mobile Pages layout overflows horizontally."
   );
 
+  if (apiSmokeEnabled) {
+    await page.getByPlaceholder("Наприклад, ChatGPT, Netflix, VPN...").fill("ChatGPT");
+    await page.waitForTimeout(300);
+    const chatGptCard = page.locator(".product-card").filter({ hasText: "ChatGPT Plus" }).first();
+    await chatGptCard.getByRole("button", { name: "Замовити" }).click();
+    await page.getByLabel("Ім'я").fill("Pages API QA");
+    await page.getByLabel("Контакт").fill("@pages_api_qa");
+    await page.getByLabel("Повідомлення").fill("Mocked Pages to API test");
+
+    await page.getByRole("button", { name: /Надіслати/ }).click();
+    await page.locator(".form-success").filter({ hasText: "заявка не збережена" }).waitFor();
+    const telegramFallback = page.locator(".form-success a");
+    assert.match(await telegramFallback.getAttribute("href"), /^https:\/\/t\.me\/yts_nnn\?text=/);
+    assert.equal(mockedLeadPostCount, 1, "Offline API fallback did not attempt one lead request.");
+
+    await page.getByRole("button", { name: /Надіслати/ }).click();
+    await page.waitForFunction(() =>
+      document.querySelector(".form-success")?.textContent?.includes("Заявку відправлено. Вона вже в адмінці.")
+    );
+    assert.equal(mockedLeadPostCount, 2, "Retry did not reach the live API mock.");
+    assert.equal(await page.locator(".form-success a").count(), 0, "Successful lead kept a stale Telegram draft link.");
+  }
+
   const productResponse = await page.goto(`${baseUrl}p/grok-super-personal`, {
     waitUntil: "domcontentloaded"
   });
@@ -93,6 +174,7 @@ try {
     productSeo: "accurate currency, package price and canonical URL",
     robotsAndSitemap: "200",
     telegramLinks: "contact, news, reviews",
+    pagesApiFlow: apiSmokeEnabled ? "offline fallback and successful retry" : undefined,
     productDeepLink: "ok",
     mobileOverflow: false
   }, null, 2));

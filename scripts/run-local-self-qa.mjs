@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createWriteStream, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
@@ -68,6 +69,58 @@ async function waitForHealth(serverProcess, timeoutMs = 60_000) {
   throw new Error(`Timed out waiting for ${healthUrl}.`);
 }
 
+async function verifyPagesApiCors() {
+  const pagesOrigin = "https://anton5267.github.io";
+  const preflight = await fetch(`${baseUrl}/api/leads`, {
+    method: "OPTIONS",
+    headers: {
+      Origin: pagesOrigin,
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "content-type"
+    }
+  });
+  assert.equal(preflight.status, 204, "Pages lead preflight was not accepted.");
+  assert.equal(preflight.headers.get("access-control-allow-origin"), pagesOrigin);
+  assert.equal(preflight.headers.get("access-control-allow-credentials"), null);
+
+  const publicRead = await fetch(`${baseUrl}/api/products`, {
+    headers: { Origin: pagesOrigin }
+  });
+  assert.equal(publicRead.status, 200, "Pages public API read did not succeed.");
+  assert.equal(publicRead.headers.get("access-control-allow-origin"), pagesOrigin);
+
+  const untrustedPreflight = await fetch(`${baseUrl}/api/leads`, {
+    method: "OPTIONS",
+    headers: {
+      Origin: "https://untrusted.example",
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "content-type"
+    }
+  });
+  assert.equal(untrustedPreflight.status, 403, "Untrusted CORS origin was not blocked.");
+
+  const adminPreflight = await fetch(`${baseUrl}/api/admin/login`, {
+    method: "OPTIONS",
+    headers: {
+      Origin: pagesOrigin,
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "content-type"
+    }
+  });
+  assert.equal(adminPreflight.status, 403, "Cross-origin admin access was not blocked.");
+
+  const proxiedSameOriginLogin = await fetch(`${baseUrl}/api/admin/login`, {
+    method: "POST",
+    headers: {
+      Origin: `https://${host}:${port}`,
+      "X-Forwarded-Proto": "https",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ password: "" })
+  });
+  assert.equal(proxiedSameOriginLogin.status, 401, "Same-origin admin login was rejected behind the HTTPS proxy.");
+}
+
 function runCommand(command, args, env = process.env) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -129,7 +182,8 @@ async function main() {
         process.env.SELF_QA_LOCAL_ADMIN_PASSWORD_HASH ?? hashSync("admin1234", 10),
       DATABASE_PATH: resolve(tempDataDir, "site.db"),
       DATABASE_BACKUP_DIR: resolve(tempDataDir, "backups"),
-      PUBLIC_SITE_URL: baseUrl
+      PUBLIC_SITE_URL: baseUrl,
+      PUBLIC_API_ALLOWED_ORIGINS: "https://anton5267.github.io"
     }
   });
   forwardStream(serverProcess.stdout, stdoutLog, process.stdout);
@@ -152,6 +206,8 @@ async function main() {
 
   try {
     await waitForHealth(serverProcess);
+    await verifyPagesApiCors();
+    console.log("GitHub Pages API CORS checks passed.");
     const qaEnv = {
       ...process.env,
       SELF_QA_URL: baseUrl

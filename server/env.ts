@@ -60,6 +60,10 @@ export const env = {
     process.env.PUBLIC_SITE_URL?.trim() ||
     process.env.RENDER_EXTERNAL_URL?.trim() ||
     "http://127.0.0.1:4174",
+  publicApiAllowedOrigins: (process.env.PUBLIC_API_ALLOWED_ORIGINS ?? "https://anton5267.github.io")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN?.trim() || "",
   telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET?.trim() || "",
   telegramChannelId: process.env.TELEGRAM_CHANNEL_ID?.trim() || "",

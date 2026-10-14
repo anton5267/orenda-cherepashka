@@ -56,6 +56,8 @@ const defaultGetTimeoutMs = 10000;
 const defaultMutationTimeoutMs = 15000;
 export const staticSiteBasePath = "/orenda-cherepashka";
 export const isStaticSite = import.meta.env.VITE_STATIC_SITE === "true";
+const liveApiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").trim().replace(/\/+$/, "");
+export const hasConfiguredLiveApi = Boolean(liveApiBaseUrl);
 let staticNewsFeedFetchedAt: string | null = null;
 
 export function getStaticNewsFeedFetchedAt() {
@@ -97,8 +99,21 @@ export async function apiRequest<T>(
   init?: RequestInit
 ): Promise<T> {
   const method = init?.method?.toUpperCase() ?? "GET";
+  const staticRemoteReadPaths = new Set([
+    "/api/site",
+    "/api/categories",
+    "/api/products",
+    "/api/faqs",
+    "/api/news",
+    "/api/reviews"
+  ]);
+  const canUseRemoteApi =
+    isStaticSite &&
+    hasConfiguredLiveApi &&
+    ((method === "GET" && staticRemoteReadPaths.has(path)) ||
+      (method === "POST" && path === "/api/leads"));
 
-  if (isStaticSite) {
+  if (isStaticSite && !canUseRemoteApi) {
     return staticPublicRequest<T>(path, method);
   }
 
@@ -115,19 +130,26 @@ export async function apiRequest<T>(
   }
 
   try {
-    const response = await fetch(path, {
-      credentials: "same-origin",
+    const headers = new Headers(init?.headers);
+    if (init?.body != null && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+
+    const requestUrl = canUseRemoteApi ? `${liveApiBaseUrl}${path}` : path;
+    const response = await fetch(requestUrl, {
+      credentials: isStaticSite ? "omit" : "same-origin",
       cache: method === "GET" ? "no-store" : init?.cache,
       ...init,
       signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        ...(init?.headers ?? {})
-      }
+      headers
     });
 
-    return parseResponse<T>(response);
+    return await parseResponse<T>(response);
   } catch (error) {
+    if (isStaticSite && canUseRemoteApi && method === "GET") {
+      return staticPublicRequest<T>(path, method);
+    }
+
     if (error instanceof ApiError) {
       throw error;
     }

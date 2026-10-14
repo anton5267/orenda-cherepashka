@@ -4,6 +4,7 @@ import {
   api,
   ApiError,
   getStaticNewsFeedFetchedAt,
+  hasConfiguredLiveApi,
   isStaticSite,
   staticSiteBasePath
 } from "../api";
@@ -1039,8 +1040,9 @@ export function HomePage() {
 
   const submitLeadRequest = async (payload: CreateLeadInput) => {
     setLeadSubmitError("");
+    setLeadTelegramDraftUrl("");
 
-    if (isStaticSite) {
+    const prepareTelegramDraft = (serverUnavailable = false) => {
       const selectedItem = payload.items?.[0];
       const product = products.find((item) => item.id === selectedItem?.productId);
       const plan = product?.pricingOptions.find((item) => item.id === selectedItem?.pricingOptionId);
@@ -1057,10 +1059,16 @@ export function HomePage() {
       const telegramUrl = new URL(displaySettings.telegramContactUrl);
       telegramUrl.searchParams.set("text", message);
       setLeadTelegramDraftUrl(telegramUrl.toString());
-      setLeadSuccess(
-        "Telegram відкриється з підготовленим текстом. Перевір його та натисни «Надіслати» в чаті; на цій демо-версії заявка не зберігається в адмінці."
-      );
-      pushToast("Підготував заявку для Telegram.", "success");
+      setLeadSuccess(serverUnavailable
+        ? "Сервер заявок тимчасово недоступний, тому заявка не збережена. Відкрий підготовлений текст у Telegram і надішли його продавцю."
+        : "Telegram відкриється з підготовленим текстом. Перевір його та натисни «Надіслати» в чаті; заявка не зберігається в адмінці.");
+      pushToast(serverUnavailable
+        ? "Сервер недоступний — підготував запасний варіант у Telegram."
+        : "Підготував заявку для Telegram.", serverUnavailable ? "error" : "success");
+    };
+
+    if (isStaticSite && !hasConfiguredLiveApi) {
+      prepareTelegramDraft();
       return;
     }
 
@@ -1081,6 +1089,11 @@ export function HomePage() {
       });
       setLeadErrors({});
     } catch (caughtError) {
+      if (isStaticSite) {
+        prepareTelegramDraft(true);
+        return;
+      }
+
       const message =
         caughtError instanceof ApiError
           ? caughtError.message
@@ -1953,8 +1966,10 @@ export function HomePage() {
                 <div className="lead-summary lead-summary-soft">
                   <strong>Що далі</strong>
                   <span>
-                    {isStaticSite
+                    {isStaticSite && !hasConfiguredLiveApi
                       ? "Після натискання Telegram відкриє чернетку з вибраним товаром і твоїм контактом. Повідомлення надішлеться лише після твого підтвердження."
+                      : isStaticSite
+                        ? "Заявка надійде на сервер і з'явиться в адмінці. Якщо сервер тимчасово недоступний, підготуємо запасний текст для Telegram."
                       : "Після відправки заявка збережеться в адмінці, а для швидкого зв'язку можна одразу написати в Telegram."}
                   </span>
                 </div>
@@ -1981,11 +1996,11 @@ export function HomePage() {
                 {!leadSuccess ? null : (
                   <NoticePanel
                     className="form-success"
-                    title={isStaticSite ? "Заявка готова до відправлення" : "Заявку прийнято"}
+                    title={leadTelegramDraftUrl ? "Заявка готова до відправлення" : "Заявку прийнято"}
                     description={leadSuccess}
-                    tone="success"
+                    tone={leadTelegramDraftUrl && hasConfiguredLiveApi ? "warning" : "success"}
                     action={
-                      isStaticSite && leadTelegramDraftUrl ? (
+                      leadTelegramDraftUrl ? (
                         <a
                           className="primary-button compact"
                           href={leadTelegramDraftUrl}

@@ -58,6 +58,72 @@ const distDir = resolve(rootDir, "dist");
 
 const app = express();
 app.disable("x-powered-by");
+app.set("trust proxy", process.env.NODE_ENV === "production" ? 1 : false);
+
+const publicCorsGetPaths = new Set([
+  "/api/site",
+  "/api/categories",
+  "/api/products",
+  "/api/faqs",
+  "/api/news",
+  "/api/reviews"
+]);
+
+app.use((request, response, next) => {
+  if (!request.path.startsWith("/api/")) {
+    next();
+    return;
+  }
+
+  const origin = request.get("Origin");
+  if (!origin) {
+    next();
+    return;
+  }
+
+  const requestOrigin = `${request.protocol}://${request.get("host")}`;
+  if (origin === requestOrigin) {
+    next();
+    return;
+  }
+
+  const requestedMethod = request.method === "OPTIONS"
+    ? request.get("Access-Control-Request-Method")?.toUpperCase()
+    : request.method;
+  const isAllowedPathAndMethod =
+    (requestedMethod === "GET" && publicCorsGetPaths.has(request.path)) ||
+    (requestedMethod === "POST" && request.path === "/api/leads");
+  const requestedHeaders = (request.get("Access-Control-Request-Headers") ?? "")
+    .split(",")
+    .map((header) => header.trim().toLowerCase())
+    .filter(Boolean);
+  const headersAreAllowed = requestedHeaders.every((header) => header === "content-type");
+
+  if (
+    !env.publicApiAllowedOrigins.includes(origin) ||
+    !isAllowedPathAndMethod ||
+    (request.method === "OPTIONS" && !headersAreAllowed)
+  ) {
+    response.status(403).json({ message: "Неприпустиме джерело запиту." });
+    return;
+  }
+
+  response.set({
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Max-Age": "600",
+    Vary: "Origin"
+  });
+
+  if (request.method === "OPTIONS") {
+    response.sendStatus(204);
+    return;
+  }
+
+  next();
+});
+
 app.use(express.json({ limit: "1mb" }));
 
 type RateLimitEntry = { count: number; resetAt: number };
@@ -131,13 +197,8 @@ function sameOrigin(request: express.Request) {
     return true;
   }
 
-  try {
-    const configuredOrigin = new URL(env.publicSiteUrl).origin;
-    const requestOrigin = `${request.protocol}://${request.get("host")}`;
-    return origin === configuredOrigin || origin === requestOrigin;
-  } catch {
-    return false;
-  }
+  const requestOrigin = `${request.protocol}://${request.get("host")}`;
+  return origin === requestOrigin;
 }
 
 app.use((_request, response, next) => {

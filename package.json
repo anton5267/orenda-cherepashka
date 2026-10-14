@@ -25,7 +25,7 @@
     "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
     "dev:client": "vite",
     "dev:server": "tsx watch server/index.ts",
-    "ci:verify": "npm run typecheck && npm run self-qa:news-dates && npm run self-qa:price-format && npm run build && npm run self-qa:backup && npm run self-qa:local && npm run build:pages && npm run self-qa:pages",
+    "ci:verify": "npm run typecheck && npm run self-qa:news-dates && npm run self-qa:price-format && npm run build && npm run self-qa:backup && npm run self-qa:local && npm run build:pages && npm run self-qa:pages && npm run self-qa:pages-api",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "build": "npm run build:client && npm run build:server",
     "build:client": "tsc -p tsconfig.json --noEmit && vite build",
@@ -40,6 +40,7 @@
     "self-qa:news-dates": "tsx scripts/news-date-smoke.ts",
     "self-qa:price-format": "tsx scripts/price-format-smoke.ts",
     "self-qa:pages": "node scripts/pages-self-qa.mjs",
+    "self-qa:pages-api": "node scripts/pages-api-self-qa.mjs",
     "self-qa:local": "node scripts/run-local-self-qa.mjs"
   },
   "dependencies": {
