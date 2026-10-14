@@ -21,12 +21,17 @@ import {
   AdminSettingsPage
 } from "./pages/admin/AdminPages";
 
+const isStaticSite = import.meta.env.VITE_STATIC_SITE === "true";
+
 const router = createBrowserRouter(
   createRoutesFromElements(
     <>
       <Route path="/" element={<HomePage />} />
-      <Route path="/admin/login" element={<AdminLoginPage />} />
-      <Route element={<AdminGuard />}>
+      <Route
+        path="/admin/login"
+        element={isStaticSite ? <Navigate to="/" replace /> : <AdminLoginPage />}
+      />
+      <Route element={isStaticSite ? <Navigate to="/" replace /> : <AdminGuard />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboardPage />} />

@@ -12,6 +12,14 @@ import type {
   SiteSettings
 } from "./types";
 import type { AdminSessionResponse } from "./types";
+import {
+  seedCategories,
+  seedFaqs,
+  seedNews,
+  seedProducts,
+  seedReviews,
+  seedSiteSettings
+} from "../shared/seedData";
 
 export class ApiError extends Error {
   status: number;
@@ -45,12 +53,52 @@ async function parseResponse<T>(response: Response): Promise<T> {
 
 const defaultGetTimeoutMs = 10000;
 const defaultMutationTimeoutMs = 15000;
+export const isStaticSite = import.meta.env.VITE_STATIC_SITE === "true";
+
+function staticPublicRequest<T>(path: string, method: string): T {
+  if (method === "GET") {
+    const publicData: Record<string, unknown> = {
+      "/api/site": seedSiteSettings,
+      "/api/categories": seedCategories.filter((item) => item.isActive),
+      "/api/products": seedProducts
+        .filter((item) => item.isActive)
+        .map((product) => ({
+          ...product,
+          pricingOptions: product.pricingOptions.map((plan, index) => ({
+            ...plan,
+            id: `${product.id}-plan-${index + 1}`
+          }))
+        })),
+      "/api/faqs": seedFaqs.filter((item) => item.isActive),
+      "/api/news": seedNews.filter((item) => item.isActive),
+      "/api/reviews": seedReviews.filter((item) => item.isActive && item.isModerated)
+    };
+
+    if (path in publicData) {
+      return publicData[path] as T;
+    }
+  }
+
+  if (path === "/api/leads" && method === "POST") {
+    return { id: `pages-lead-${Date.now()}` } as T;
+  }
+
+  throw new ApiError(
+    "Ця функція доступна після підключення серверної версії сайту.",
+    501
+  );
+}
 
 export async function apiRequest<T>(
   path: string,
   init?: RequestInit
 ): Promise<T> {
   const method = init?.method?.toUpperCase() ?? "GET";
+
+  if (isStaticSite) {
+    return staticPublicRequest<T>(path, method);
+  }
+
   const timeoutMs = method === "GET" ? defaultGetTimeoutMs : defaultMutationTimeoutMs;
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);

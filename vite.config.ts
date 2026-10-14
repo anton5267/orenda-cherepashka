@@ -7,6 +7,7 @@ const rootDir = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
+  base: process.env.VITE_STATIC_SITE === "true" ? "/orenda-cherepashka/" : "/",
   server: {
     host: "127.0.0.1",
     port: 4173,

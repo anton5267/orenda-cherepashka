@@ -29,6 +29,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "build": "npm run build:client && npm run build:server",
     "build:client": "tsc -p tsconfig.json --noEmit && vite build",
+    "build:pages": "npm run build:client && node scripts/copy-pages-fallback.mjs",
     "build:server": "tsc -p tsconfig.server.json",
     "preview": "vite preview",
     "start": "node server-dist/server/index.js",

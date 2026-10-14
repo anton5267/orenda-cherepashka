@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { api, ApiError } from "../api";
+import { api, ApiError, isStaticSite } from "../api";
 import { defaultSiteSettings } from "../../shared/siteDefaults";
 import type {
   Category,
@@ -998,8 +998,11 @@ export function HomePage() {
     try {
       await api.createLead(payload);
 
-      setLeadSuccess("Заявку відправлено. Вона вже в адмінці.");
-      pushToast("Заявку відправлено. Вона вже в адмінці.", "success");
+      const successMessage = isStaticSite
+        ? "Форму прийнято. Для швидкого підтвердження напиши нам у Telegram."
+        : "Заявку відправлено. Вона вже в адмінці.";
+      setLeadSuccess(successMessage);
+      pushToast(successMessage, "success");
       setLeadValues({
         name: "",
         contact: "",
@@ -1158,13 +1161,13 @@ export function HomePage() {
                 >
                   Telegram
                 </a>
-                <a
+                {!isStaticSite ? <a
                   className="ghost-button compact mobile-menu-admin-link"
                   href="/admin/login"
                   onClick={() => setMenuOpen(false)}
                 >
                   Адмін-панель
-                </a>
+                </a> : null}
               </div>
 
               <div className="mobile-menu-stats">
@@ -1808,8 +1811,9 @@ export function HomePage() {
                 <div className="lead-summary lead-summary-soft">
                   <strong>Що далі</strong>
                   <span>
-                    Після відправки заявка збережеться в адмінці, а для швидкого зв'язку можна
-                    одразу написати в Telegram.
+                    {isStaticSite
+                      ? "У Pages-версії форма працює як швидкий запит; для підтвердження одразу напиши в Telegram."
+                      : "Після відправки заявка збережеться в адмінці, а для швидкого зв'язку можна одразу написати в Telegram."}
                   </span>
                 </div>
 
@@ -1927,9 +1931,7 @@ export function HomePage() {
                     <a href={`#${link.id}`}>{link.label}</a>
                   </li>
                 ))}
-                <li>
-                  <a href="/admin/login">Адмін-панель</a>
-                </li>
+                {!isStaticSite ? <li><a href="/admin/login">Адмін-панель</a></li> : null}
               </ul>
             </div>
 
