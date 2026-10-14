@@ -81,10 +81,6 @@ function staticPublicRequest<T>(path: string, method: string): T {
     }
   }
 
-  if (path === "/api/leads" && method === "POST") {
-    return { id: `pages-lead-${Date.now()}` } as T;
-  }
-
   throw new ApiError(
     "Ця функція доступна після підключення серверної версії сайту.",
     501
@@ -159,8 +155,22 @@ export const api = {
     apiRequest<Product[]>(admin ? "/api/admin/products" : "/api/products"),
   getFaqs: (admin = false) =>
     apiRequest<FaqItem[]>(admin ? "/api/admin/faqs" : "/api/faqs"),
-  getNews: (admin = false) =>
-    apiRequest<NewsItem[]>(admin ? "/api/admin/news" : "/api/news"),
+  getNews: async (admin = false) => {
+    if (!admin && isStaticSite) {
+      try {
+        const response = await fetch(`${staticSiteBasePath}/telegram-news.json`, {
+          cache: "no-store"
+        });
+        if (response.ok) {
+          const feed = (await response.json()) as { items?: NewsItem[] };
+          if (feed.items?.length) return feed.items;
+        }
+      } catch {
+        // Fall back to the bundled news if the generated channel feed is unavailable.
+      }
+    }
+    return apiRequest<NewsItem[]>(admin ? "/api/admin/news" : "/api/news");
+  },
   getReviews: (admin = false) =>
     apiRequest<Review[]>(admin ? "/api/admin/reviews" : "/api/reviews"),
   getLeads: () => apiRequest<Lead[]>("/api/admin/leads"),

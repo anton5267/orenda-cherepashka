@@ -136,6 +136,8 @@ The repository includes `render.yaml` for a public Docker deployment on Render. 
 
 The custom domain can then be attached to the Render service from its dashboard. GitHub Actions runs the typecheck, production build, and local self-QA on every push and pull request.
 
+GitHub Pages also reads the latest public posts from `@arenda_cherepashka`: its Pages workflow fetches the channel before each build and runs every 30 minutes. Use **Actions → Deploy GitHub Pages → Run workflow** to refresh it immediately. This feed needs no bot token; the Render webhook remains available for the server deployment. On the Pages demo, the order form creates a Telegram draft for `@yts_nnn` and does not claim to save the lead in an admin database.
+
 ## Production environment
 
 Required production values:

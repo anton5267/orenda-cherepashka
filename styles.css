@@ -1341,6 +1341,21 @@ code {
   gap: 22px;
 }
 
+.news-channel-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--brand-strong);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.news-channel-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
 .news-card,
 .review-card {
   display: flex;
@@ -1374,6 +1389,14 @@ code {
   color: var(--muted);
   font-size: 0.88rem;
   flex-wrap: wrap;
+}
+
+.news-card > p {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 7;
+  white-space: pre-line;
 }
 
 .lead-panel {

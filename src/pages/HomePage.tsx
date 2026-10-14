@@ -298,6 +298,7 @@ export function HomePage() {
   const [activeSection, setActiveSection] = useState<SectionId>("catalog");
   const [leadSubmitting, setLeadSubmitting] = useState(false);
   const [leadSuccess, setLeadSuccess] = useState("");
+  const [leadTelegramDraftUrl, setLeadTelegramDraftUrl] = useState("");
   const [leadSubmitError, setLeadSubmitError] = useState("");
   const [leadErrors, setLeadErrors] = useState<LeadFormErrors>({});
   const [leadValues, setLeadValues] = useState<LeadFormState>({
@@ -1011,15 +1012,38 @@ export function HomePage() {
   };
 
   const submitLeadRequest = async (payload: CreateLeadInput) => {
-    setLeadSubmitting(true);
     setLeadSubmitError("");
+
+    if (isStaticSite) {
+      const selectedItem = payload.items?.[0];
+      const product = products.find((item) => item.id === selectedItem?.productId);
+      const plan = product?.pricingOptions.find((item) => item.id === selectedItem?.pricingOptionId);
+      const message = [
+        "Вітаю! Хочу оформити замовлення:",
+        `Сервіс: ${product?.name ?? "не вибрано"}`,
+        `Тариф: ${plan?.label ?? "не вибрано"}${plan ? ` — ${formatPrice(plan.price)}` : ""}`,
+        `Ім'я: ${leadValues.name.trim()}`,
+        `Мій контакт: ${leadValues.contact.trim()}`,
+        leadValues.message.trim() ? `Коментар: ${leadValues.message.trim()}` : ""
+      ]
+        .filter(Boolean)
+        .join("\n");
+      const telegramUrl = new URL(displaySettings.telegramContactUrl);
+      telegramUrl.searchParams.set("text", message);
+      setLeadTelegramDraftUrl(telegramUrl.toString());
+      setLeadSuccess(
+        "Telegram відкриється з підготовленим текстом. Перевір його та натисни «Надіслати» в чаті; на цій демо-версії заявка не зберігається в адмінці."
+      );
+      pushToast("Підготував заявку для Telegram.", "success");
+      return;
+    }
+
+    setLeadSubmitting(true);
 
     try {
       await api.createLead(payload);
 
-      const successMessage = isStaticSite
-        ? "Форму прийнято. Для швидкого підтвердження напиши нам у Telegram."
-        : "Заявку відправлено. Вона вже в адмінці.";
+      const successMessage = "Заявку відправлено. Вона вже в адмінці.";
       setLeadSuccess(successMessage);
       pushToast(successMessage, "success");
       setLeadValues({
@@ -1604,13 +1628,25 @@ export function HomePage() {
             <Reveal className="section-head">
               <span className="section-kicker">Оновлення</span>
               <h2>Останні новини</h2>
-              <p>Важливі зміни по сервісах та доступності підписок.</p>
+              <p>Свіжі публікації з каналу. Стрічка автоматично оновлюється приблизно раз на 30 хвилин.</p>
+              <a
+                className="news-channel-link"
+                href={displaySettings.telegramNewsChannelUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Відкрити канал у Telegram ↗
+              </a>
             </Reveal>
 
             {!news.length ? (
               <EmptyState
                 title="Новини скоро з'являться"
-                description="Коли адмін додасть оновлення по сервісах, вони будуть тут."
+                description={
+                  isStaticSite
+                    ? "Стрічка оновлюється з Telegram автоматично. Переглянь канал, поки оновлення завантажується."
+                    : "Коли адміністратор додасть оновлення по сервісах, вони з'являться тут."
+                }
                 action={
                   <a className="primary-button compact" href="#catalog">
                     Повернутися до каталогу
@@ -1628,7 +1664,7 @@ export function HomePage() {
                     <h3>{item.title}</h3>
                     <p>{item.content}</p>
                     <div className="news-card-footer">
-                      <span>Оновлення для замовлення</span>
+                      <span>{item.sourceType === "telegram" ? "Публікація каналу" : "Оновлення для замовлення"}</span>
                       {item.sourceUrl ? (
                         <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">
                           Джерело в Telegram ↗
@@ -1870,9 +1906,21 @@ export function HomePage() {
                 {!leadSuccess ? null : (
                   <NoticePanel
                     className="form-success"
-                    title="Заявку прийнято"
+                    title={isStaticSite ? "Заявка готова до відправлення" : "Заявку прийнято"}
                     description={leadSuccess}
                     tone="success"
+                    action={
+                      isStaticSite && leadTelegramDraftUrl ? (
+                        <a
+                          className="primary-button compact"
+                          href={leadTelegramDraftUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Перевірити й надіслати в Telegram ↗
+                        </a>
+                      ) : undefined
+                    }
                   />
                 )}
 
