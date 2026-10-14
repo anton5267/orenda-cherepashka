@@ -1963,30 +1963,41 @@ export function HomePage() {
           <div className="shell">
             <Reveal className="section-head">
               <span className="section-kicker">Відгуки</span>
-              <h2>Відгуки наших клієнтів</h2>
-              <p>Публікуємо відгуки після перевірки; також можна переглянути відгуки в нашому Telegram-каналі.</p>
+              <h2>Що кажуть клієнти</h2>
+              <p>Реальні відгуки клієнтів зібрані в нашому Telegram-каналі.</p>
             </Reveal>
 
             {!reviews.length ? (
-              <EmptyState
-                title="Відгуки ще збираються"
-                description="Не показуємо вигадані оцінки. Переглянь відгуки клієнтів у Telegram або постав запитання менеджеру."
-                action={
-                  <>
-                    <a
-                      className="primary-button compact"
-                      href="https://t.me/cherepashka_vidguk"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Відгуки в Telegram ↗
-                    </a>
-                    <a className="ghost-button compact" href="#lead-form">
-                      Поставити запитання
-                    </a>
-                  </>
-                }
-              />
+              <div className="reviews-spotlight">
+                <div className="reviews-spotlight-icon" aria-hidden="true">💬</div>
+                <div className="reviews-spotlight-copy">
+                  <span className="reviews-spotlight-label">Відгуки клієнтів · Telegram</span>
+                  <h3>Переконайся на досвіді інших</h3>
+                  <p>Переглянь відгуки в нашому каналі перед замовленням. На сайті показуємо лише відгуки, які пройшли модерацію.</p>
+                  <a
+                    className="reviews-channel-url"
+                    href="https://t.me/cherepashka_vidguk"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Відкрити канал відгуків @cherepashka_vidguk у Telegram"
+                  >
+                    @cherepashka_vidguk ↗
+                  </a>
+                </div>
+                <div className="reviews-spotlight-actions">
+                  <a
+                    className="primary-button compact"
+                    href="https://t.me/cherepashka_vidguk"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Переглянути відгуки
+                  </a>
+                  <a className="ghost-button compact" href="#lead-form">
+                    Запитати менеджера
+                  </a>
+                </div>
+              </div>
             ) : (
               <div className="reviews-track">
                 {reviews.map((review) => (
