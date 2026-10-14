@@ -12,7 +12,8 @@ export interface BulkMutationResult {
 
 export interface SiteSettings {
   siteName: string;
-  telegramChannel: string;
+  telegramContactUrl: string;
+  telegramNewsChannelUrl: string;
   heroTitle: string;
   heroSubtitle: string;
   footerDescription: string;
@@ -70,7 +71,23 @@ export interface NewsItem {
   content: string;
   sortOrder: number;
   isActive: boolean;
+  sourceType?: "manual" | "telegram";
+  sourceUrl?: string;
+  sourceChatId?: number;
+  sourceMessageId?: number;
+  publishedAt?: string;
   updatedAt?: string;
+}
+
+export interface TelegramWebhookEvent {
+  id: number;
+  updateId: number | null;
+  eventType: string;
+  chatId: number | null;
+  messageId: number | null;
+  status: "processed" | "ignored" | "failed";
+  errorMessage?: string | null;
+  createdAt: string;
 }
 
 export interface Review {

@@ -9,7 +9,8 @@ import type {
   NewsItem,
   Product,
   Review,
-  SiteSettings
+  SiteSettings,
+  TelegramWebhookEvent
 } from "./types";
 import type { AdminSessionResponse } from "./types";
 import {
@@ -268,6 +269,7 @@ export const api = {
       body: JSON.stringify(payload)
     }),
   getSettings: () => apiRequest<SiteSettings>("/api/admin/settings"),
+  getTelegramEvents: () => apiRequest<TelegramWebhookEvent[]>("/api/admin/telegram/events"),
   updateSettings: (payload: Partial<SiteSettings>) =>
     apiRequest<SiteSettings>("/api/admin/settings", {
       method: "PATCH",

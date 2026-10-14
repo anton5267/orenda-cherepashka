@@ -14,7 +14,8 @@ import type {
   PricingOption,
   Product,
   Review,
-  SiteSettings
+  SiteSettings,
+  TelegramWebhookEvent
 } from "../../types";
 import { api, ApiError } from "../../api";
 import { useAdminUnsavedChanges } from "./AdminLayout";
@@ -720,6 +721,7 @@ export function AdminDashboardPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
+  const [telegramEvents, setTelegramEvents] = useState<TelegramWebhookEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -733,13 +735,15 @@ export function AdminDashboardPage() {
         loadedCategories,
         loadedLeads,
         loadedReviews,
-        loadedNews
+        loadedNews,
+        loadedTelegramEvents
       ] = await Promise.all([
         api.getProducts(true),
         api.getCategories(true),
         api.getLeads(),
         api.getReviews(true),
-        api.getNews(true)
+        api.getNews(true),
+        api.getTelegramEvents()
       ]);
 
       setProducts(loadedProducts);
@@ -747,6 +751,7 @@ export function AdminDashboardPage() {
       setLeads(loadedLeads);
       setReviews(loadedReviews);
       setNews(loadedNews);
+      setTelegramEvents(loadedTelegramEvents);
     } catch (error) {
       setLoadError(getErrorMessage(error));
     } finally {
@@ -889,6 +894,22 @@ export function AdminDashboardPage() {
                   </Link>
                 ))}
               </div>
+            </AdminCard>
+            <AdminCard title="Telegram webhook">
+              {!telegramEvents.length ? (
+                <p className="dashboard-muted">
+                  Подій ще немає. Перевір TELEGRAM_BOT_TOKEN, secret і права бота в каналі.
+                </p>
+              ) : (
+                <ul className="dashboard-list">
+                  {telegramEvents.slice(0, 6).map((event) => (
+                    <li key={event.id}>
+                      <strong>{event.status}</strong> · {event.eventType} · {event.messageId ?? "—"}
+                      <small>{formatDateTime(event.createdAt)}</small>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </AdminCard>
           </div>
 
@@ -5020,7 +5041,8 @@ export function AdminSettingsPage() {
                 </div>
                 <strong>{settings.siteName}</strong>
                 <p>{settings.footerDescription}</p>
-                <small>{settings.telegramChannel}</small>
+                <small>Контакт: {settings.telegramContactUrl}</small>
+                <small>Канал: {settings.telegramNewsChannelUrl}</small>
               </article>
             </div>
 
@@ -5061,11 +5083,20 @@ export function AdminSettingsPage() {
                 />
               </label>
               <label>
-                Telegram URL
+                Telegram продавця
                 <input
-                  value={settings.telegramChannel}
+                  value={settings.telegramContactUrl}
                   onChange={(event) =>
-                    updateSettingsField("telegramChannel", event.target.value)
+                    updateSettingsField("telegramContactUrl", event.target.value)
+                  }
+                />
+              </label>
+              <label>
+                Telegram-канал новин
+                <input
+                  value={settings.telegramNewsChannelUrl}
+                  onChange={(event) =>
+                    updateSettingsField("telegramNewsChannelUrl", event.target.value)
                   }
                 />
               </label>

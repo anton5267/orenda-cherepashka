@@ -16,9 +16,21 @@ services:
         value: /app/data/site.db
       - key: SECURE_COOKIES
         value: true
+      - key: PUBLIC_SITE_URL
+        value: https://orenda-cherepashka.shop
+      - key: TELEGRAM_AUTO_PUBLISH
+        value: true
+      - key: TELEGRAM_CHANNEL_ID
+        value: "@arenda_cherepashka"
       - key: SESSION_SECRET
         generateValue: true
       - key: ADMIN_PASSWORD
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      - key: TELEGRAM_ADMIN_CHAT_ID
         sync: false
     disk:
       name: orenda-data

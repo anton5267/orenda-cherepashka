@@ -8,6 +8,8 @@ import {
 import { ThemeProvider } from "./theme";
 import { ToastProvider } from "./toasts";
 import { HomePage } from "./pages/HomePage";
+import { ProductPage } from "./pages/ProductPage";
+import { LegalPage } from "./pages/LegalPage";
 import { AdminLoginPage } from "./pages/AdminLoginPage";
 import { AdminGuard, AdminLayout } from "./pages/admin/AdminLayout";
 import {
@@ -28,6 +30,8 @@ const router = createBrowserRouter(
   createRoutesFromElements(
     <>
       <Route path="/" element={<HomePage />} />
+      <Route path="/p/:slug" element={<ProductPage />} />
+      <Route path="/legal/:slug" element={<LegalPage />} />
       <Route
         path="/admin/login"
         element={isStaticSite ? <Navigate to="/" replace /> : <AdminLoginPage />}

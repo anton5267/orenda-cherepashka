@@ -16,6 +16,7 @@ export const recommendedSettingsCopy: Pick<
 
 export const defaultSiteSettings: SiteSettings = {
   siteName: "Orenda Cherepashka",
-  telegramChannel: "https://t.me/orenda_cherepashka",
+  telegramContactUrl: "https://t.me/yts_nnn",
+  telegramNewsChannelUrl: "https://t.me/arenda_cherepashka",
   ...recommendedSettingsCopy
 };

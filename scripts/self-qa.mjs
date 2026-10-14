@@ -1724,7 +1724,10 @@ async function runAdminChecks(browser) {
   }
 
   const settingsForm = page.locator(".admin-card form").first();
-  const settingsHeroTitleInput = settingsForm.locator("label").nth(2).locator("input");
+  const settingsHeroTitleInput = settingsForm
+    .locator("label")
+    .filter({ hasText: "Заголовок hero" })
+    .locator("input");
   const originalHeroTitle = await settingsHeroTitleInput.inputValue();
   const draftHeroTitle = `${originalHeroTitle} TEST`;
   await settingsHeroTitleInput.fill(draftHeroTitle);
@@ -1903,7 +1906,10 @@ async function runAdminChecks(browser) {
   await mobilePage.getByRole("heading", { name: "Налаштування" }).first().waitFor();
 
   const mobileSettingsForm = mobilePage.locator(".admin-card form").first();
-  const mobileSettingsHeroTitleInput = mobileSettingsForm.locator("label").nth(2).locator("input");
+  const mobileSettingsHeroTitleInput = mobileSettingsForm
+    .locator("label")
+    .filter({ hasText: "Заголовок hero" })
+    .locator("input");
   const originalMobileHeroTitle = await mobileSettingsHeroTitleInput.inputValue();
   const mobileDraftHeroTitle = `${originalMobileHeroTitle} MOBILE`;
   await mobileSettingsHeroTitleInput.fill(mobileDraftHeroTitle);

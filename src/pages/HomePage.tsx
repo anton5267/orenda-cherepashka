@@ -1113,7 +1113,7 @@ export function HomePage() {
               <ThemeToggle />
               <a
                 className="primary-button compact"
-                href={displaySettings.telegramChannel}
+                href={displaySettings.telegramContactUrl}
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -1173,7 +1173,7 @@ export function HomePage() {
                 </a>
                 <a
                   className="ghost-button compact"
-                  href={displaySettings.telegramChannel}
+                  href={displaySettings.telegramContactUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setMenuOpen(false)}
@@ -1226,7 +1226,7 @@ export function HomePage() {
                 </a>
                 <a
                   className="ghost-button"
-                  href={displaySettings.telegramChannel}
+                  href={displaySettings.telegramContactUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -1462,6 +1462,12 @@ export function HomePage() {
                             <span className="product-category">{category?.name ?? ""}</span>
                             <h3>{product.name}</h3>
                             <p className="product-summary">{product.summary}</p>
+                            <a
+                              className="product-seo-link"
+                              href={`${isStaticSite ? staticSiteBasePath : ""}/p/${product.slug}`}
+                            >
+                              Окрема сторінка товару ↗
+                            </a>
                           </div>
 
                           <div className="price-box">
@@ -1553,7 +1559,7 @@ export function HomePage() {
                     </a>
                     <a
                       className="ghost-button compact"
-                      href={displaySettings.telegramChannel}
+                      href={displaySettings.telegramContactUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -1623,7 +1629,13 @@ export function HomePage() {
                     <p>{item.content}</p>
                     <div className="news-card-footer">
                       <span>Оновлення для замовлення</span>
-                      <span>Актуальний публічний статус</span>
+                      {item.sourceUrl ? (
+                        <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">
+                          Джерело в Telegram ↗
+                        </a>
+                      ) : (
+                        <span>Актуальний публічний статус</span>
+                      )}
                     </div>
                   </Reveal>
                 ))}
@@ -1874,7 +1886,7 @@ export function HomePage() {
                   </button>
                   <a
                     className="ghost-button"
-                    href={displaySettings.telegramChannel}
+                    href={displaySettings.telegramContactUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -1961,11 +1973,19 @@ export function HomePage() {
               </p>
               <a
                 className="primary-button compact"
-                href={displaySettings.telegramChannel}
+                href={displaySettings.telegramContactUrl}
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 Написати в Telegram
+              </a>
+              <a
+                className="ghost-button compact"
+                href={displaySettings.telegramNewsChannelUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Наш Telegram-канал
               </a>
             </div>
           </div>
@@ -1975,7 +1995,12 @@ export function HomePage() {
               © {new Date().getFullYear()} {displaySettings.siteName}. Всі права
               захищені.
             </p>
-            <p>SPA + API версія з підготовкою під checkout flow.</p>
+            <p className="footer-legal-links">
+              <a href={`${isStaticSite ? staticSiteBasePath : ""}/legal/privacy`}>Конфіденційність</a>
+              <a href={`${isStaticSite ? staticSiteBasePath : ""}/legal/terms`}>Умови оренди</a>
+              <a href={`${isStaticSite ? staticSiteBasePath : ""}/legal/refund`}>Заміна та повернення</a>
+              <a href={`${isStaticSite ? staticSiteBasePath : ""}/legal/contacts`}>Контакти</a>
+            </p>
           </div>
         </div>
       </footer>
@@ -2021,7 +2046,7 @@ export function HomePage() {
         </a>
         <a
           className="ghost-button compact"
-          href={displaySettings.telegramChannel}
+          href={displaySettings.telegramContactUrl}
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -2159,7 +2184,7 @@ export function HomePage() {
               </button>
               <a
                 className="ghost-button"
-                href={displaySettings.telegramChannel}
+                href={displaySettings.telegramContactUrl}
                 target="_blank"
                 rel="noopener noreferrer"
               >

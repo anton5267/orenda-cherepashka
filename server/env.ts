@@ -27,6 +27,9 @@ function resolveAdminPasswordHash() {
   }
 
   if (adminPassword) {
+    if (isProduction && adminPassword.length < 12) {
+      throw new Error("ADMIN_PASSWORD must be at least 12 characters in production.");
+    }
     return hashSync(adminPassword, 10);
   }
 
@@ -52,5 +55,12 @@ export const env = {
         ? false
         : isProduction,
   adminPasswordHash: resolveAdminPasswordHash(),
-  sessionDurationMs: 1000 * 60 * 60 * 24 * 7
+  sessionDurationMs: 1000 * 60 * 60 * 24,
+  publicSiteUrl:
+    process.env.PUBLIC_SITE_URL?.trim() || "http://127.0.0.1:4174",
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN?.trim() || "",
+  telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET?.trim() || "",
+  telegramChannelId: process.env.TELEGRAM_CHANNEL_ID?.trim() || "",
+  telegramAutoPublish: process.env.TELEGRAM_AUTO_PUBLISH !== "false",
+  telegramAdminChatId: process.env.TELEGRAM_ADMIN_CHAT_ID?.trim() || ""
 };

@@ -77,6 +77,11 @@ type NewsRow = {
   content: string;
   sort_order: number;
   is_active: DbBool;
+  source_type: "manual" | "telegram" | null;
+  source_url: string | null;
+  source_chat_id: number | null;
+  source_message_id: number | null;
+  published_at: string | null;
   updated_at: string | null;
 };
 
@@ -259,7 +264,10 @@ function ensureColumn(tableName: string, columnName: string, definition: string)
 function mapSettings(row: Record<string, unknown>): SiteSettings {
   return {
     siteName: String(row.site_name),
-    telegramChannel: String(row.telegram_channel),
+    telegramContactUrl: String(row.telegram_contact_url ?? "https://t.me/yts_nnn"),
+    telegramNewsChannelUrl: String(
+      row.telegram_news_channel_url ?? "https://t.me/arenda_cherepashka"
+    ),
     heroTitle: String(row.hero_title),
     heroSubtitle: String(row.hero_subtitle),
     footerDescription: String(row.footer_description),
@@ -330,6 +338,11 @@ function mapNews(row: NewsRow): NewsItem {
     content: row.content,
     sortOrder: row.sort_order,
     isActive: intToBool(row.is_active),
+    sourceType: row.source_type ?? "manual",
+    sourceUrl: row.source_url ?? undefined,
+    sourceChatId: row.source_chat_id ?? undefined,
+    sourceMessageId: row.source_message_id ?? undefined,
+    publishedAt: row.published_at ?? undefined,
     updatedAt: row.updated_at ?? undefined
   };
 }
@@ -382,6 +395,8 @@ function ensureSchema() {
       singleton_key INTEGER PRIMARY KEY CHECK (singleton_key = 1),
       site_name TEXT NOT NULL,
       telegram_channel TEXT NOT NULL,
+      telegram_contact_url TEXT,
+      telegram_news_channel_url TEXT,
       hero_title TEXT NOT NULL,
       hero_subtitle TEXT NOT NULL,
       footer_description TEXT NOT NULL,
@@ -439,6 +454,11 @@ function ensureSchema() {
       content TEXT NOT NULL,
       sort_order INTEGER NOT NULL DEFAULT 0,
       is_active INTEGER NOT NULL DEFAULT 1,
+      source_type TEXT NOT NULL DEFAULT 'manual',
+      source_url TEXT,
+      source_chat_id INTEGER,
+      source_message_id INTEGER,
+      published_at TEXT,
       updated_at TEXT
     );
 
@@ -474,6 +494,17 @@ function ensureSchema() {
       compare_at_snapshot INTEGER,
       quantity INTEGER NOT NULL DEFAULT 1
     );
+
+    CREATE TABLE IF NOT EXISTS telegram_webhook_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      update_id INTEGER,
+      event_type TEXT NOT NULL,
+      chat_id INTEGER,
+      message_id INTEGER,
+      status TEXT NOT NULL CHECK (status IN ('processed', 'ignored', 'failed')),
+      error_message TEXT,
+      created_at TEXT NOT NULL
+    );
   `);
 }
 
@@ -482,6 +513,13 @@ function ensureCompatibilityMigrations() {
   ensureColumn("products", "updated_at", "TEXT");
   ensureColumn("faqs", "updated_at", "TEXT");
   ensureColumn("news", "updated_at", "TEXT");
+  ensureColumn("settings", "telegram_contact_url", "TEXT");
+  ensureColumn("settings", "telegram_news_channel_url", "TEXT");
+  ensureColumn("news", "source_type", "TEXT");
+  ensureColumn("news", "source_url", "TEXT");
+  ensureColumn("news", "source_chat_id", "INTEGER");
+  ensureColumn("news", "source_message_id", "INTEGER");
+  ensureColumn("news", "published_at", "TEXT");
   ensureColumn("reviews", "updated_at", "TEXT");
 
   const timestamp = nowIso();
@@ -489,6 +527,13 @@ function ensureCompatibilityMigrations() {
   db.prepare("UPDATE products SET updated_at = COALESCE(updated_at, ?)").run(timestamp);
   db.prepare("UPDATE faqs SET updated_at = COALESCE(updated_at, ?)").run(timestamp);
   db.prepare("UPDATE news SET updated_at = COALESCE(updated_at, ?)").run(timestamp);
+  db.prepare(
+    "UPDATE settings SET telegram_contact_url = COALESCE(NULLIF(telegram_contact_url, ''), ?), telegram_news_channel_url = COALESCE(NULLIF(telegram_news_channel_url, ''), ?) WHERE singleton_key = 1"
+  ).run("https://t.me/yts_nnn", "https://t.me/arenda_cherepashka");
+  db.prepare("UPDATE news SET source_type = COALESCE(NULLIF(source_type, ''), 'manual')").run();
+  db.exec(
+    "CREATE UNIQUE INDEX IF NOT EXISTS news_telegram_source_idx ON news(source_chat_id, source_message_id) WHERE source_type = 'telegram' AND source_chat_id IS NOT NULL AND source_message_id IS NOT NULL"
+  );
   db.prepare("UPDATE reviews SET updated_at = COALESCE(updated_at, created_at, ?)").run(timestamp);
 }
 
@@ -510,16 +555,20 @@ function ensureSeed() {
           singleton_key,
           site_name,
           telegram_channel,
+          telegram_contact_url,
+          telegram_news_channel_url,
           hero_title,
           hero_subtitle,
           footer_description,
           lead_title,
           lead_subtitle
-        ) VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `
     ).run(
       seedSiteSettings.siteName,
-      seedSiteSettings.telegramChannel,
+      seedSiteSettings.telegramContactUrl,
+      seedSiteSettings.telegramContactUrl,
+      seedSiteSettings.telegramNewsChannelUrl,
       seedSiteSettings.heroTitle,
       seedSiteSettings.heroSubtitle,
       seedSiteSettings.footerDescription,
@@ -626,8 +675,8 @@ function ensureSeed() {
 
     const insertNews = db.prepare(
       `
-        INSERT INTO news (id, title, date_label, content, sort_order, is_active, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO news (id, title, date_label, content, sort_order, is_active, source_type, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `
     );
 
@@ -639,6 +688,7 @@ function ensureSeed() {
         item.content,
         item.sortOrder,
         boolToInt(item.isActive),
+        item.sourceType ?? "manual",
         seedTimestamp
       );
     });
@@ -758,6 +808,103 @@ function getNewsById(id: string) {
   }
 
   return mapNews(row);
+}
+
+export function getProductBySlug(slug: string, includeInactive = false) {
+  const row = db
+    .prepare(
+      includeInactive
+        ? "SELECT * FROM products WHERE slug = ?"
+        : "SELECT * FROM products WHERE slug = ? AND is_active = 1"
+    )
+    .get(slug) as ProductRow | undefined;
+
+  if (!row) {
+    throw new HttpError(404, "Товар не знайдено.");
+  }
+
+  const pricingRows = db
+    .prepare("SELECT * FROM pricing_options WHERE product_id = ? ORDER BY sort_order ASC")
+    .all(row.id) as PricingRow[];
+
+  return mapProduct(row, pricingRows);
+}
+
+export function upsertTelegramNews(payload: {
+  title: string;
+  dateLabel: string;
+  content: string;
+  sourceUrl: string;
+  sourceChatId: number;
+  sourceMessageId: number;
+  publishedAt: string;
+}) {
+  const existing = db
+    .prepare(
+      "SELECT * FROM news WHERE source_type = 'telegram' AND source_chat_id = ? AND source_message_id = ?"
+    )
+    .get(payload.sourceChatId, payload.sourceMessageId) as NewsRow | undefined;
+
+  if (existing) {
+    return updateNewsItem(existing.id, {
+      title: payload.title,
+      dateLabel: payload.dateLabel,
+      content: payload.content,
+      sourceType: "telegram",
+      sourceUrl: payload.sourceUrl,
+      sourceChatId: payload.sourceChatId,
+      sourceMessageId: payload.sourceMessageId,
+      publishedAt: payload.publishedAt,
+      isActive: true
+    });
+  }
+
+  return createNewsItem({
+    title: payload.title,
+    dateLabel: payload.dateLabel,
+    content: payload.content,
+    sortOrder: 0,
+    isActive: true,
+    sourceType: "telegram",
+    sourceUrl: payload.sourceUrl,
+    sourceChatId: payload.sourceChatId,
+    sourceMessageId: payload.sourceMessageId,
+    publishedAt: payload.publishedAt
+  });
+}
+
+export function recordTelegramWebhookEvent(payload: {
+  updateId: number | null;
+  eventType: string;
+  chatId: number | null;
+  messageId: number | null;
+  status: "processed" | "ignored" | "failed";
+  errorMessage?: string;
+}) {
+  db.prepare(
+    `INSERT INTO telegram_webhook_events
+      (update_id, event_type, chat_id, message_id, status, error_message, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    payload.updateId,
+    payload.eventType,
+    payload.chatId,
+    payload.messageId,
+    payload.status,
+    payload.errorMessage ?? null,
+    nowIso()
+  );
+}
+
+export function listTelegramWebhookEvents(limit = 30) {
+  return db
+    .prepare(
+      `SELECT id, update_id AS updateId, event_type AS eventType,
+        chat_id AS chatId, message_id AS messageId, status,
+        error_message AS errorMessage, created_at AS createdAt
+       FROM telegram_webhook_events ORDER BY id DESC LIMIT ?`
+    )
+    .all(Math.min(Math.max(limit, 1), 100));
 }
 
 function getReviewById(id: string) {
@@ -1130,8 +1277,8 @@ export function listFaqs(includeInactive = false) {
 
 export function listNews(includeInactive = false) {
   const sql = includeInactive
-    ? "SELECT * FROM news ORDER BY sort_order ASC, title ASC"
-    : "SELECT * FROM news WHERE is_active = 1 ORDER BY sort_order ASC, title ASC";
+    ? "SELECT * FROM news ORDER BY sort_order ASC, COALESCE(published_at, updated_at) DESC, title ASC"
+    : "SELECT * FROM news WHERE is_active = 1 ORDER BY sort_order ASC, COALESCE(published_at, updated_at) DESC, title ASC";
 
   return (db.prepare(sql).all() as NewsRow[]).map(mapNews);
 }
@@ -1477,8 +1624,8 @@ export function createNewsItem(payload: Partial<NewsItem>) {
 
   db.prepare(
     `
-      INSERT INTO news (id, title, date_label, content, sort_order, is_active, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO news (id, title, date_label, content, sort_order, is_active, source_type, source_url, source_chat_id, source_message_id, published_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
   ).run(
     id,
@@ -1487,6 +1634,11 @@ export function createNewsItem(payload: Partial<NewsItem>) {
     normalizeText(payload.content, "content"),
     normalizeNumber(payload.sortOrder, listNews(true).length + 1),
     boolToInt(payload.isActive),
+    payload.sourceType ?? "manual",
+    payload.sourceUrl ?? null,
+    payload.sourceChatId ?? null,
+    payload.sourceMessageId ?? null,
+    payload.publishedAt ?? null,
     nowIso()
   );
 
@@ -1499,7 +1651,7 @@ export function updateNewsItem(id: string, payload: Partial<NewsItem>) {
   db.prepare(
     `
       UPDATE news
-      SET title = ?, date_label = ?, content = ?, sort_order = ?, is_active = ?, updated_at = ?
+      SET title = ?, date_label = ?, content = ?, sort_order = ?, is_active = ?, source_type = ?, source_url = ?, source_chat_id = ?, source_message_id = ?, published_at = ?, updated_at = ?
       WHERE id = ?
     `
   ).run(
@@ -1512,6 +1664,11 @@ export function updateNewsItem(id: string, payload: Partial<NewsItem>) {
     payload.isActive !== undefined
       ? boolToInt(payload.isActive)
       : boolToInt(current.isActive),
+    payload.sourceType ?? current.sourceType ?? "manual",
+    payload.sourceUrl ?? current.sourceUrl ?? null,
+    payload.sourceChatId ?? current.sourceChatId ?? null,
+    payload.sourceMessageId ?? current.sourceMessageId ?? null,
+    payload.publishedAt ?? current.publishedAt ?? null,
     nowIso(),
     id
   );
@@ -1636,14 +1793,20 @@ export function updateSiteSettings(payload: Partial<SiteSettings>) {
   db.prepare(
     `
       UPDATE settings
-      SET site_name = ?, telegram_channel = ?, hero_title = ?, hero_subtitle = ?, footer_description = ?, lead_title = ?, lead_subtitle = ?
+      SET site_name = ?, telegram_contact_url = ?, telegram_news_channel_url = ?, telegram_channel = ?, hero_title = ?, hero_subtitle = ?, footer_description = ?, lead_title = ?, lead_subtitle = ?
       WHERE singleton_key = 1
     `
   ).run(
     payload.siteName ? normalizeText(payload.siteName, "siteName") : current.siteName,
-    payload.telegramChannel
-      ? normalizeText(payload.telegramChannel, "telegramChannel")
-      : current.telegramChannel,
+    payload.telegramContactUrl
+      ? normalizeText(payload.telegramContactUrl, "telegramContactUrl")
+      : current.telegramContactUrl,
+    payload.telegramNewsChannelUrl
+      ? normalizeText(payload.telegramNewsChannelUrl, "telegramNewsChannelUrl")
+      : current.telegramNewsChannelUrl,
+    payload.telegramContactUrl
+      ? normalizeText(payload.telegramContactUrl, "telegramContactUrl")
+      : current.telegramContactUrl,
     payload.heroTitle ? normalizeText(payload.heroTitle, "heroTitle") : current.heroTitle,
     payload.heroSubtitle
       ? normalizeText(payload.heroSubtitle, "heroSubtitle")

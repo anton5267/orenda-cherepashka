@@ -12,7 +12,8 @@ export type {
   PricingOption,
   Product,
   Review,
-  SiteSettings
+  SiteSettings,
+  TelegramWebhookEvent
 } from "../shared/models";
 
 export interface AdminSessionResponse {
