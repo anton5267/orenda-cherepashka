@@ -333,7 +333,7 @@ export function HomePage() {
   const displaySettings = settings ?? defaultSiteSettings;
   const totalProducts = products.length || 16;
   const totalCategories = categories.length || 5;
-  const totalReviews = reviews.length || 3;
+  const totalReviews = reviews.length;
   const totalHotProducts = products.filter((product) => product.isHot).length || 4;
   const minimalPrice =
     products
@@ -1433,7 +1433,8 @@ export function HomePage() {
                     <strong>{products.length}</strong>
                   </p>
                   <span>
-                    {totalReviews}+ відгуків • {totalHotProducts}+ хітів • від{" "}
+                    {totalReviews ? <>{totalReviews}+ відгуків • </> : null}
+                    {totalHotProducts}+ хітів • від{" "}
                     {formatPrice(minimalPrice)}
                   </span>
                 </div>
