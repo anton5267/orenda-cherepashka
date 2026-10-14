@@ -241,7 +241,7 @@ export const seedProducts: SeedProduct[] = [
   },
   {
     id: "surfshark-vpn",
-    name: "Surfshurk VPN",
+    name: "Surfshark VPN",
     slug: "surfshark-vpn",
     categoryId: "cat-vpn",
     summary: "VPN Starter для кількох пристроїв зі зміною IP та блокуванням реклами.",

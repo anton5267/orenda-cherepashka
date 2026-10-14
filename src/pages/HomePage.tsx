@@ -1476,7 +1476,7 @@ export function HomePage() {
                                 <span>
                                   {formatPrice(plan.price)}
                                   {getPlanSavings(plan) > 0
-                                    ? ` • -${formatPrice(getPlanSavings(plan))}`
+                                    ? ` • економія ${formatPrice(getPlanSavings(plan))}`
                                     : ""}
                                 </span>
                               </span>
@@ -1655,7 +1655,7 @@ export function HomePage() {
                           <span>
                             {product.name}
                             {getPlanSavings(lowestPlan) > 0
-                              ? ` • -${formatPrice(getPlanSavings(lowestPlan))}`
+                              ? ` • економія ${formatPrice(getPlanSavings(lowestPlan))}`
                               : ""}
                           </span>
                           <strong>{formatPrice(lowestPlan.price)}</strong>
