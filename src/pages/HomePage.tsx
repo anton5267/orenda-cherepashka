@@ -10,6 +10,7 @@ import {
 } from "../api";
 import { defaultSiteSettings } from "../../shared/siteDefaults";
 import { getTelegramPromotionExpiry } from "../../shared/newsDates";
+import { preserveUtmAttribution, readUtmAttribution } from "../attribution";
 import type {
   Category,
   CreateLeadInput,
@@ -93,6 +94,7 @@ type LeadFormState = {
   message: string;
   productId: string;
   pricingOptionId: string;
+  neededBy: string;
 };
 
 type LeadFormErrors = Partial<Record<keyof LeadFormState, string>>;
@@ -196,6 +198,11 @@ function formatReviewDate(value?: string) {
     month: "long",
     year: "numeric"
   }).format(new Date(value));
+}
+
+function getTodayDateInputValue() {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 }
 
 function getPlanSavings(plan: PricingOption | null | undefined) {
@@ -312,6 +319,7 @@ export function HomePage() {
   const [activeSection, setActiveSection] = useState<SectionId>("catalog");
   const [leadSubmitting, setLeadSubmitting] = useState(false);
   const [leadSuccess, setLeadSuccess] = useState("");
+  const [leadOrderId, setLeadOrderId] = useState("");
   const [leadTelegramDraftUrl, setLeadTelegramDraftUrl] = useState("");
   const [leadSubmitError, setLeadSubmitError] = useState("");
   const [leadErrors, setLeadErrors] = useState<LeadFormErrors>({});
@@ -320,7 +328,8 @@ export function HomePage() {
     contact: "",
     message: "",
     productId: "",
-    pricingOptionId: ""
+    pricingOptionId: "",
+    neededBy: ""
   });
 
   useEffect(() => {
@@ -925,7 +934,7 @@ export function HomePage() {
   };
 
   const updateLeadTextField = (
-    field: "name" | "contact" | "message",
+    field: "name" | "contact" | "message" | "neededBy",
     value: string
   ) => {
     setLeadSuccess("");
@@ -1028,6 +1037,8 @@ export function HomePage() {
       name: leadValues.name.trim(),
       contact: leadValues.contact.trim(),
       message: leadValues.message.trim(),
+      neededBy: leadValues.neededBy || null,
+      ...readUtmAttribution(),
       items: [
         {
           productId: selectedLeadProduct.id,
@@ -1041,6 +1052,7 @@ export function HomePage() {
   const submitLeadRequest = async (payload: CreateLeadInput) => {
     setLeadSubmitError("");
     setLeadTelegramDraftUrl("");
+    setLeadOrderId("");
 
     const prepareTelegramDraft = (serverUnavailable = false) => {
       const selectedItem = payload.items?.[0];
@@ -1050,6 +1062,8 @@ export function HomePage() {
         "Вітаю! Хочу оформити замовлення:",
         `Сервіс: ${product?.name ?? "не вибрано"}`,
         `Тариф: ${plan?.label ?? "не вибрано"}${plan ? ` — ${formatPrice(plan)}` : ""}`,
+        payload.neededBy ? `Потрібно з: ${payload.neededBy}` : "",
+        payload.utmSource ? `Джерело: ${[payload.utmSource, payload.utmMedium, payload.utmCampaign].filter(Boolean).join(" · ")}` : "",
         `Ім'я: ${leadValues.name.trim()}`,
         `Мій контакт: ${leadValues.contact.trim()}`,
         leadValues.message.trim() ? `Коментар: ${leadValues.message.trim()}` : ""
@@ -1075,9 +1089,11 @@ export function HomePage() {
     setLeadSubmitting(true);
 
     try {
-      await api.createLead(payload);
+      const lead = await api.createLead(payload);
+      const orderNumber = lead.id.slice(0, 8).toUpperCase();
+      setLeadOrderId(orderNumber);
 
-      const successMessage = "Заявку відправлено. Вона вже в адмінці.";
+      const successMessage = `Заявку збережено в адмінці. Номер: ${orderNumber}.`;
       setLeadSuccess(successMessage);
       pushToast(successMessage, "success");
       setLeadValues({
@@ -1085,7 +1101,8 @@ export function HomePage() {
         contact: "",
         message: "",
         productId: "",
-        pricingOptionId: ""
+        pricingOptionId: "",
+        neededBy: ""
       });
       setLeadErrors({});
     } catch (caughtError) {
@@ -1536,7 +1553,7 @@ export function HomePage() {
                             <p className="product-summary">{product.summary}</p>
                             <a
                               className="product-seo-link"
-                              href={`${isStaticSite ? staticSiteBasePath : ""}/p/${product.slug}`}
+                              href={preserveUtmAttribution(`${isStaticSite ? staticSiteBasePath : ""}/p/${product.slug}`)}
                             >
                               Окрема сторінка товару ↗
                             </a>
@@ -1918,6 +1935,17 @@ export function HomePage() {
                 </label>
 
                 <label>
+                  Коли потрібна підписка? <span className="field-optional">необов'язково</span>
+                  <input
+                    aria-label="Коли потрібна підписка"
+                    type="date"
+                    min={getTodayDateInputValue()}
+                    value={leadValues.neededBy}
+                    onChange={(event) => updateLeadTextField("neededBy", event.target.value)}
+                  />
+                </label>
+
+                <label>
                   Повідомлення
                   <textarea
                     rows={5}
@@ -2008,6 +2036,15 @@ export function HomePage() {
                           rel="noopener noreferrer"
                         >
                           Перевірити й надіслати в Telegram ↗
+                        </a>
+                      ) : leadOrderId ? (
+                        <a
+                          className="primary-button compact"
+                          href={`${displaySettings.telegramContactUrl}?text=${encodeURIComponent(`Вітаю! Пишу щодо заявки №${leadOrderId}.`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Написати менеджеру ↗
                         </a>
                       ) : undefined
                     }

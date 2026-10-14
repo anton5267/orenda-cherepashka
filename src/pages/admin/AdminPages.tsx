@@ -5,6 +5,7 @@ import {
   type SetURLSearchParams
 } from "react-router-dom";
 import type {
+  AnalyticsSummary,
   BulkActionPayload,
   Category,
   FaqItem,
@@ -738,6 +739,7 @@ export function AdminDashboardPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [telegramEvents, setTelegramEvents] = useState<TelegramWebhookEvent[]>([]);
+  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -752,14 +754,16 @@ export function AdminDashboardPage() {
         loadedLeads,
         loadedReviews,
         loadedNews,
-        loadedTelegramEvents
+        loadedTelegramEvents,
+        loadedAnalytics
       ] = await Promise.all([
         api.getProducts(true),
         api.getCategories(true),
         api.getLeads(),
         api.getReviews(true),
         api.getNews(true),
-        api.getTelegramEvents()
+        api.getTelegramEvents(),
+        api.getAnalytics()
       ]);
 
       setProducts(loadedProducts);
@@ -768,6 +772,7 @@ export function AdminDashboardPage() {
       setReviews(loadedReviews);
       setNews(loadedNews);
       setTelegramEvents(loadedTelegramEvents);
+      setAnalytics(loadedAnalytics);
     } catch (error) {
       setLoadError(getErrorMessage(error));
     } finally {
@@ -870,6 +875,70 @@ export function AdminDashboardPage() {
               <span className="dashboard-muted">чекають модерації</span>
             </article>
           </div>
+
+          <AdminCard title="Аналітика сайту · останні 30 днів">
+            {!analytics ? (
+              <p className="dashboard-muted">Поки немає зведених даних.</p>
+            ) : (
+              <>
+                <div className="dashboard-stats dashboard-stats-wide">
+                  <article className="dashboard-stat">
+                    <strong>{analytics.pageViews}</strong>
+                    <span className="dashboard-muted">переглядів сторінок</span>
+                  </article>
+                  <article className="dashboard-stat">
+                    <strong>{analytics.productViews}</strong>
+                    <span className="dashboard-muted">переглядів товарів</span>
+                  </article>
+                  <article className="dashboard-stat">
+                    <strong>{analytics.telegramClicks}</strong>
+                    <span className="dashboard-muted">переходів у Telegram</span>
+                  </article>
+                  <article className="dashboard-stat">
+                    <strong>{analytics.leads}</strong>
+                    <span className="dashboard-muted">заявок</span>
+                  </article>
+                  <article className="dashboard-stat">
+                    <strong>{analytics.leadPerPageViewPercent}%</strong>
+                    <span className="dashboard-muted">заявок на перегляд сторінки</span>
+                  </article>
+                </div>
+                <div className="dashboard-grid">
+                  <div>
+                    <h4>Популярні товари</h4>
+                    {!analytics.popularProducts.length ? (
+                      <p className="dashboard-muted">Детальні сторінки товарів ще не переглядали.</p>
+                    ) : (
+                      <ul className="dashboard-list">
+                        {analytics.popularProducts.map((product) => (
+                          <li key={product.slug}>
+                            <strong>{product.name}</strong> · {product.views} переглядів · {product.leads} заявок
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div>
+                    <h4>UTM-джерела</h4>
+                    {!analytics.campaignSources.length ? (
+                      <p className="dashboard-muted">Позначених рекламних переходів поки немає.</p>
+                    ) : (
+                      <ul className="dashboard-list">
+                        {analytics.campaignSources.map((source) => (
+                          <li key={source.source}>
+                            <strong>{source.source}</strong> · {source.visits} переходів · {source.leads} заявок
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+                <p className="dashboard-muted">
+                  Аналітика рахує події без cookies, відбитків пристрою та збереження IP; записи автоматично видаляються через 90 днів.
+                </p>
+              </>
+            )}
+          </AdminCard>
 
           <div className="dashboard-grid">
             <AdminCard title="Швидкі переходи">
@@ -4473,6 +4542,10 @@ export function AdminLeadsPage() {
           item.name,
           item.contact,
           item.message,
+          item.neededBy ?? "",
+          item.utmSource ?? "",
+          item.utmMedium ?? "",
+          item.utmCampaign ?? "",
           ...item.items.map((leadItem) => leadItem.labelSnapshot)
         ],
         query
@@ -4788,6 +4861,7 @@ export function AdminLeadsPage() {
                             {getLeadStatusLabel(item.status)}
                           </StatusBadge>
                           <StatusBadge tone="muted">{formatDateTime(item.createdAt)}</StatusBadge>
+                          <StatusBadge tone="muted">№{item.id.slice(0, 8).toUpperCase()}</StatusBadge>
                         </div>
                         <strong>{item.name}</strong>
                         <p>{item.contact}</p>
@@ -4835,6 +4909,18 @@ export function AdminLeadsPage() {
                     </div>
 
                     <div className="lead-item-list">
+                      {!item.neededBy ? null : (
+                        <div className="lead-item-row">
+                          <strong>Потрібно з</strong>
+                          <span>{new Intl.DateTimeFormat("uk-UA").format(new Date(`${item.neededBy}T00:00:00`))}</span>
+                        </div>
+                      )}
+                      {!item.utmSource ? null : (
+                        <div className="lead-item-row">
+                          <strong>Джерело</strong>
+                          <span>{[item.utmSource, item.utmMedium, item.utmCampaign].filter(Boolean).join(" · ")}</span>
+                        </div>
+                      )}
                       {item.items.map((leadItem) => (
                         <div className="lead-item-row" key={leadItem.id}>
                           <strong>{leadItem.labelSnapshot}</strong>

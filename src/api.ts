@@ -1,6 +1,7 @@
 import type {
   BulkActionPayload,
   BulkMutationResult,
+  AnalyticsSummary,
   Category,
   CreateLeadInput,
   FaqItem,
@@ -8,6 +9,7 @@ import type {
   LeadStatus,
   NewsItem,
   Product,
+  PublicAnalyticsEventInput,
   Review,
   SiteSettings,
   TelegramWebhookEvent
@@ -111,7 +113,7 @@ export async function apiRequest<T>(
     isStaticSite &&
     hasConfiguredLiveApi &&
     ((method === "GET" && staticRemoteReadPaths.has(path)) ||
-      (method === "POST" && path === "/api/leads"));
+      (method === "POST" && ["/api/leads", "/api/analytics/events"].includes(path)));
 
   if (isStaticSite && !canUseRemoteApi) {
     return staticPublicRequest<T>(path, method);
@@ -315,6 +317,20 @@ export const api = {
     }),
   getSettings: () => apiRequest<SiteSettings>("/api/admin/settings"),
   getTelegramEvents: () => apiRequest<TelegramWebhookEvent[]>("/api/admin/telegram/events"),
+  getAnalytics: () => apiRequest<AnalyticsSummary>("/api/admin/analytics"),
+  trackEvent: (payload: PublicAnalyticsEventInput) => {
+    if (typeof navigator !== "undefined" && (
+      navigator.doNotTrack === "1" || Reflect.get(navigator, "globalPrivacyControl") === true
+    )) {
+      return Promise.resolve();
+    }
+
+    return apiRequest<void>("/api/analytics/events", {
+      method: "POST",
+      body: JSON.stringify(payload),
+      keepalive: true
+    }).catch(() => undefined);
+  },
   updateSettings: (payload: Partial<SiteSettings>) =>
     apiRequest<SiteSettings>("/api/admin/settings", {
       method: "PATCH",

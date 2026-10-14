@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import Database from "better-sqlite3";
 import type {
   BulkMutationResult,
+  AnalyticsSummary,
   Category,
   CreateLeadInput,
   FaqItem,
@@ -13,6 +14,7 @@ import type {
   NewsItem,
   PricingOption,
   Product,
+  PublicAnalyticsEventInput,
   Review,
   SiteSettings
 } from "../shared/models.js";
@@ -106,6 +108,10 @@ type LeadRow = {
   message: string;
   status: LeadStatus;
   created_at: string;
+  needed_by: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
 };
 
 type LeadItemRow = {
@@ -401,7 +407,11 @@ function mapLead(row: LeadRow, itemRows: LeadItemRow[]): Lead {
     items: items.length ? items : buildLegacyLeadItemsFallback(row.product_id),
     message: row.message ?? "",
     status: row.status,
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    neededBy: row.needed_by,
+    utmSource: row.utm_source,
+    utmMedium: row.utm_medium,
+    utmCampaign: row.utm_campaign
   };
 }
 
@@ -498,7 +508,11 @@ function ensureSchema() {
       product_id TEXT,
       message TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL CHECK (status IN ('new', 'contacted', 'closed')),
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      needed_by TEXT,
+      utm_source TEXT,
+      utm_medium TEXT,
+      utm_campaign TEXT
     );
 
     CREATE TABLE IF NOT EXISTS lead_items (
@@ -523,6 +537,19 @@ function ensureSchema() {
       error_message TEXT,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS analytics_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_name TEXT NOT NULL CHECK (event_name IN ('page_view', 'product_view', 'telegram_click')),
+      path TEXT NOT NULL,
+      product_slug TEXT,
+      utm_source TEXT,
+      utm_medium TEXT,
+      utm_campaign TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS analytics_events_created_at_idx ON analytics_events(created_at);
+    CREATE INDEX IF NOT EXISTS analytics_events_product_idx ON analytics_events(product_slug, event_name, created_at);
   `);
 }
 
@@ -541,6 +568,10 @@ function ensureCompatibilityMigrations() {
   ensureColumn("reviews", "updated_at", "TEXT");
   ensureColumn("pricing_options", "currency", "TEXT NOT NULL DEFAULT 'UAH'");
   ensureColumn("lead_items", "currency", "TEXT NOT NULL DEFAULT 'UAH'");
+  ensureColumn("leads", "needed_by", "TEXT");
+  ensureColumn("leads", "utm_source", "TEXT");
+  ensureColumn("leads", "utm_medium", "TEXT");
+  ensureColumn("leads", "utm_campaign", "TEXT");
 
   db.prepare(
     `INSERT OR IGNORE INTO categories (id, name, slug, icon, sort_order, is_active, updated_at)
@@ -1349,6 +1380,10 @@ export function createLead(payload: LeadPayload) {
   const name = normalizeText(payload.name, "name");
   const contact = normalizeText(payload.contact, "contact");
   const message = normalizeOptionalText(payload.message);
+  const neededBy = normalizeOptionalText(payload.neededBy) || null;
+  const utmSource = normalizeOptionalText(payload.utmSource) || null;
+  const utmMedium = normalizeOptionalText(payload.utmMedium) || null;
+  const utmCampaign = normalizeOptionalText(payload.utmCampaign) || null;
   const items = normalizeLeadItems(payload);
   const primaryProductId = items[0]?.productId ?? null;
   const createdAt = nowIso();
@@ -1363,16 +1398,128 @@ export function createLead(payload: LeadPayload) {
           product_id,
           message,
           status,
-          created_at
-        ) VALUES (?, ?, ?, ?, ?, 'new', ?)
+          created_at,
+          needed_by,
+          utm_source,
+          utm_medium,
+          utm_campaign
+        ) VALUES (?, ?, ?, ?, ?, 'new', ?, ?, ?, ?, ?)
       `
-    ).run(id, name, contact, primaryProductId, message, createdAt);
+    ).run(
+      id,
+      name,
+      contact,
+      primaryProductId,
+      message,
+      createdAt,
+      neededBy,
+      utmSource,
+      utmMedium,
+      utmCampaign
+    );
 
     insertLeadItems(id, items);
   });
 
   transaction();
   return getLeadById(id);
+}
+
+export function pruneExpiredAnalyticsEvents(now = Date.now()) {
+  const retentionCutoff = new Date(now - 90 * 24 * 60 * 60 * 1000).toISOString();
+  return db.prepare("DELETE FROM analytics_events WHERE created_at < ?").run(retentionCutoff).changes;
+}
+
+export function recordPublicAnalyticsEvent(payload: PublicAnalyticsEventInput) {
+  pruneExpiredAnalyticsEvents();
+  const createdAt = nowIso();
+  db.prepare(
+    `INSERT INTO analytics_events
+      (event_name, path, product_slug, utm_source, utm_medium, utm_campaign, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    payload.eventName,
+    payload.path,
+    payload.productSlug ?? null,
+    payload.utmSource ?? null,
+    payload.utmMedium ?? null,
+    payload.utmCampaign ?? null,
+    createdAt
+  );
+}
+
+export function getAnalyticsSummary(periodDays = 30): AnalyticsSummary {
+  pruneExpiredAnalyticsEvents();
+  const boundedPeriodDays = Math.max(1, Math.min(Math.floor(periodDays), 90));
+  const since = new Date(Date.now() - boundedPeriodDays * 24 * 60 * 60 * 1000).toISOString();
+  const totals = db
+    .prepare(
+      `SELECT event_name AS eventName, COUNT(*) AS count
+       FROM analytics_events
+       WHERE created_at >= ?
+       GROUP BY event_name`
+    )
+    .all(since) as Array<{ eventName: string; count: number }>;
+  const totalFor = (eventName: string) => totals.find((item) => item.eventName === eventName)?.count ?? 0;
+  const leads = (db
+    .prepare("SELECT COUNT(*) AS count FROM leads WHERE created_at >= ?")
+    .get(since) as { count: number }).count;
+  const pageViews = totalFor("page_view");
+
+  const popularProducts = (db
+    .prepare(
+      `SELECT p.slug, p.name,
+         (SELECT COUNT(*) FROM analytics_events e
+          WHERE e.event_name = 'product_view' AND e.product_slug = p.slug AND e.created_at >= ?) AS views,
+         (SELECT COUNT(DISTINCT l.id) FROM leads l
+          JOIN lead_items li ON li.lead_id = l.id
+          WHERE li.product_id = p.id AND l.created_at >= ?) AS leads
+       FROM products p
+       ORDER BY views DESC, leads DESC, p.sort_order ASC
+       LIMIT 20`
+    )
+    .all(since, since) as Array<{ slug: string; name: string; views: number; leads: number }>)
+    .filter((item) => item.views > 0 || item.leads > 0)
+    .slice(0, 8);
+
+  const sources = new Map<string, { source: string; visits: number; leads: number }>();
+  const visitRows = db
+    .prepare(
+      `SELECT utm_source AS source, COUNT(*) AS visits
+       FROM analytics_events
+       WHERE event_name = 'page_view' AND created_at >= ? AND utm_source IS NOT NULL
+       GROUP BY utm_source`
+    )
+    .all(since) as Array<{ source: string; visits: number }>;
+  for (const item of visitRows) {
+    sources.set(item.source, { source: item.source, visits: item.visits, leads: 0 });
+  }
+  const leadRows = db
+    .prepare(
+      `SELECT utm_source AS source, COUNT(*) AS leads
+       FROM leads
+       WHERE created_at >= ? AND utm_source IS NOT NULL
+       GROUP BY utm_source`
+    )
+    .all(since) as Array<{ source: string; leads: number }>;
+  for (const item of leadRows) {
+    const current = sources.get(item.source) ?? { source: item.source, visits: 0, leads: 0 };
+    current.leads = item.leads;
+    sources.set(item.source, current);
+  }
+
+  return {
+    periodDays: boundedPeriodDays,
+    pageViews,
+    productViews: totalFor("product_view"),
+    telegramClicks: totalFor("telegram_click"),
+    leads,
+    leadPerPageViewPercent: pageViews ? Math.round((leads / pageViews) * 10000) / 100 : 0,
+    popularProducts,
+    campaignSources: [...sources.values()].sort(
+      (left, right) => right.leads - left.leads || right.visits - left.visits
+    )
+  };
 }
 
 export function createCategory(payload: Partial<Category>) {

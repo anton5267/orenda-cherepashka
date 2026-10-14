@@ -1,6 +1,7 @@
 export type {
   BulkActionPayload,
   BulkMutationResult,
+  AnalyticsSummary,
   Category,
   CreateLeadInput,
   FaqItem,
@@ -11,6 +12,7 @@ export type {
   NewsItem,
   PricingOption,
   Product,
+  PublicAnalyticsEventInput,
   Review,
   SiteSettings,
   TelegramWebhookEvent

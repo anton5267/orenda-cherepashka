@@ -25,6 +25,7 @@ import {
   deleteProduct,
   deleteReview,
   getSiteSettings,
+  getAnalyticsSummary,
   getProductBySlug,
   listCategories,
   listFaqs,
@@ -33,6 +34,7 @@ import {
   listProducts,
   listReviews,
   listTelegramWebhookEvents,
+  recordPublicAnalyticsEvent,
   updateCategory,
   updateFaq,
   updateLeadStatus,
@@ -48,6 +50,7 @@ import {
 } from "./telegram.js";
 import {
   validateLeadPayload,
+  validatePublicAnalyticsEvent,
   validateNewsPayload,
   validateSettingsPayload
 } from "./validation.js";
@@ -92,7 +95,7 @@ app.use((request, response, next) => {
     : request.method;
   const isAllowedPathAndMethod =
     (requestedMethod === "GET" && publicCorsGetPaths.has(request.path)) ||
-    (requestedMethod === "POST" && request.path === "/api/leads");
+    (requestedMethod === "POST" && ["/api/leads", "/api/analytics/events"].includes(request.path));
   const requestedHeaders = (request.get("Access-Control-Request-Headers") ?? "")
     .split(",")
     .map((header) => header.trim().toLowerCase())
@@ -131,9 +134,7 @@ const rateLimitEntries = new Map<string, RateLimitEntry>();
 const loginFailureEntries = new Map<string, RateLimitEntry>();
 
 function getClientKey(request: express.Request) {
-  const forwarded = request.headers["x-forwarded-for"];
-  const forwardedValue = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-  return forwardedValue?.split(",")[0]?.trim() || request.ip || "unknown";
+  return request.ip || "unknown";
 }
 
 function rateLimit(options: { key: string; max: number; windowMs: number }) {
@@ -315,6 +316,15 @@ app.post(
 );
 
 app.post(
+  "/api/analytics/events",
+  rateLimit({ key: "analytics-event", max: 120, windowMs: 10 * 60 * 1000 }),
+  wrap((request, response) => {
+    recordPublicAnalyticsEvent(validatePublicAnalyticsEvent(request.body));
+    response.status(204).end();
+  })
+);
+
+app.post(
   "/api/telegram/webhook",
   rateLimit({ key: "telegram-webhook", max: 120, windowMs: 60 * 1000 }),
   wrap(async (request, response) => {
@@ -333,6 +343,10 @@ app.post(
 
 app.get("/api/admin/session", (request, response) => {
   response.json({ authenticated: hasAdminSession(request) });
+});
+
+app.get("/api/admin/analytics", requireAdmin, (_request, response) => {
+  response.json(getAnalyticsSummary());
 });
 
 app.post(

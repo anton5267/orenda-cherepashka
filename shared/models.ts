@@ -126,6 +126,10 @@ export interface CreateLeadInput {
   message: string;
   items?: LeadItemInput[];
   productId?: string | null;
+  neededBy?: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
 }
 
 export interface Lead {
@@ -136,4 +140,39 @@ export interface Lead {
   message: string;
   status: LeadStatus;
   createdAt: string;
+  neededBy?: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+}
+
+export type PublicAnalyticsEventName = "page_view" | "product_view" | "telegram_click";
+
+export interface PublicAnalyticsEventInput {
+  eventName: PublicAnalyticsEventName;
+  path: string;
+  productSlug?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+}
+
+export interface AnalyticsSummary {
+  periodDays: number;
+  pageViews: number;
+  productViews: number;
+  telegramClicks: number;
+  leads: number;
+  leadPerPageViewPercent: number;
+  popularProducts: Array<{
+    slug: string;
+    name: string;
+    views: number;
+    leads: number;
+  }>;
+  campaignSources: Array<{
+    source: string;
+    visits: number;
+    leads: number;
+  }>;
 }

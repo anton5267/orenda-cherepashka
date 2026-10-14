@@ -1,6 +1,6 @@
 import { chmod, mkdir, readdir, stat, unlink } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import { createDatabaseBackup, databaseFilePath } from "./store.js";
+import { createDatabaseBackup, databaseFilePath, pruneExpiredAnalyticsEvents } from "./store.js";
 
 const millisecondsPerDay = 24 * 60 * 60 * 1000;
 const checkIntervalMs = 60 * 60 * 1000;
@@ -47,6 +47,7 @@ export async function runDatabaseBackupIfDue(now = new Date()) {
 
   backupInProgress = true;
   try {
+    pruneExpiredAnalyticsEvents(now.getTime());
     await mkdir(backupDirectory, { recursive: true, mode: 0o700 });
     await chmod(backupDirectory, 0o700);
     const entries = await readdir(backupDirectory, { withFileTypes: true });

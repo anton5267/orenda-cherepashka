@@ -83,6 +83,26 @@ async function verifyPagesApiCors() {
   assert.equal(preflight.headers.get("access-control-allow-origin"), pagesOrigin);
   assert.equal(preflight.headers.get("access-control-allow-credentials"), null);
 
+  const analyticsPreflight = await fetch(`${baseUrl}/api/analytics/events`, {
+    method: "OPTIONS",
+    headers: {
+      Origin: pagesOrigin,
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "content-type"
+    }
+  });
+  assert.equal(analyticsPreflight.status, 204, "Pages analytics preflight was not accepted.");
+  const analyticsEvent = await fetch(`${baseUrl}/api/analytics/events`, {
+    method: "POST",
+    headers: {
+      Origin: pagesOrigin,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ eventName: "page_view", path: "/", utmSource: "cors-smoke" })
+  });
+  assert.equal(analyticsEvent.status, 204, "Pages analytics event was not accepted.");
+  assert.equal(analyticsEvent.headers.get("access-control-allow-origin"), pagesOrigin);
+
   const publicRead = await fetch(`${baseUrl}/api/products`, {
     headers: { Origin: pagesOrigin }
   });
@@ -119,6 +139,31 @@ async function verifyPagesApiCors() {
     body: JSON.stringify({ password: "" })
   });
   assert.equal(proxiedSameOriginLogin.status, 401, "Same-origin admin login was rejected behind the HTTPS proxy.");
+
+  const effectiveClientIp = "203.0.113.42";
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    const failure = await fetch(`${baseUrl}/api/admin/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Forwarded-Proto": "https",
+        "X-Forwarded-For": `198.51.100.${attempt}, ${effectiveClientIp}`
+      },
+      body: JSON.stringify({ password: "wrong-password" })
+    });
+    assert.equal(failure.status, 401, `Invalid login attempt ${attempt} was unexpectedly blocked.`);
+  }
+
+  const spoofedRetry = await fetch(`${baseUrl}/api/admin/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Forwarded-Proto": "https",
+      "X-Forwarded-For": `198.51.100.99, ${effectiveClientIp}`
+    },
+    body: JSON.stringify({ password: "wrong-password" })
+  });
+  assert.equal(spoofedRetry.status, 429, "Changing the untrusted forwarded IP bypassed the login rate limit.");
 }
 
 function runCommand(command, args, env = process.env) {

@@ -147,6 +147,8 @@ GitHub Pages is the public storefront and does not require a custom domain. The 
 
 The Pages build uses `VITE_API_BASE_URL` to call the Render API for live public data and saved leads. The server only permits browser API calls from the GitHub Pages origin; admin requests remain same-origin on Render. GitHub Actions runs the typecheck, both production builds, and local self-QA on every push and pull request.
 
+The public catalog remains available on GitHub Pages when the API is offline. In that state, live admin data and saved leads are unavailable; the form explicitly offers a Telegram draft instead of claiming the lead was saved. The Render service was last observed as owner-suspended, so the owner must resume it in the Render dashboard before expecting `/api/health` to return `200`. Keep the service's persistent disk attached and set a strong `ADMIN_PASSWORD` (12+ characters) in Render environment settings; never put credentials in this repository.
+
 GitHub Pages reads the latest public posts from `@arenda_cherepashka`: its workflow fetches the channel before each build and runs every 30 minutes. Use **Actions → Deploy GitHub Pages → Run workflow** to refresh it immediately. This feed needs no bot token. When Render is available, Pages submits leads to its API and they appear in the admin panel. If the API is unavailable, the form clearly says the lead was not saved and offers a prepared Telegram message to `@yts_nnn` as a fallback.
 
 Seed testimonials are intentionally empty. The public page links to the seller's Telegram reviews channel until genuine, moderated customer feedback is added in the admin panel.
@@ -176,3 +178,9 @@ Add the bot as an administrator of `@arenda_cherepashka`. Once the service start
 - `GET /robots.txt`
 
 Telegram contact buttons intentionally point to `https://t.me/yts_nnn`; the channel link is kept separate so customers do not confuse support with news.
+
+The admin dashboard includes first-party, cookie-free counts for page and product views, Telegram clicks, leads, and UTM sources. It does not store IP addresses or device identifiers and honors browser Do Not Track / Global Privacy Control signals; raw analytics events are pruned after 90 days. This design does not itself establish legal compliance: the owner should confirm the privacy notice and any applicable consent requirements for the markets served.
+
+## Search Console
+
+The public canonical site is `https://anton5267.github.io/orenda-cherepashka/` (the `.shop` domain is not configured as the primary site). After verifying this URL-prefix property in Google Search Console using a verification file or meta tag, submit `https://anton5267.github.io/orenda-cherepashka/sitemap.xml` and monitor indexing and security reports. Verification requires a token from the owner's Google account; no placeholder token is committed here, and sitemap submission does not guarantee indexing.

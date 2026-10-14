@@ -63,6 +63,28 @@ async function main() {
   const cookie = await login();
   const stamp = Date.now();
 
+  for (const eventName of ["page_view", "product_view", "telegram_click"]) {
+    await request("/api/analytics/events", {
+      method: "POST",
+      body: JSON.stringify({
+        eventName,
+        path: eventName === "product_view" ? "/p/chatgpt-plus-9" : "/",
+        ...(eventName === "product_view" ? { productSlug: "chatgpt-plus-9" } : {}),
+        utmSource: "admin-api-smoke"
+      })
+    });
+  }
+
+  const invalidAnalyticsEvent = await fetch(`${baseUrl}/api/analytics/events`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ eventName: "page_view", path: "/?email=private@example.com" })
+  });
+  assert(
+    invalidAnalyticsEvent.status === 400,
+    "Analytics accepted a path containing query parameters."
+  );
+
   const { data: existingLeads } = await request("/api/admin/leads", {
     headers: withCookie(cookie)
   });
@@ -236,6 +258,10 @@ async function main() {
       name: `TEST Lead ${stamp}`,
       contact: "@test_lead_contact",
       message: "Admin API smoke lead",
+      neededBy: "2026-10-25",
+      utmSource: "admin-api-smoke",
+      utmMedium: "test",
+      utmCampaign: "smoke-run",
       items: [
         {
           productId: "chatgpt-plus-shared",
@@ -245,6 +271,30 @@ async function main() {
       ]
     })
   });
+  assert(lead.neededBy === "2026-10-25", "Lead requested date did not persist.");
+  assert(lead.utmSource === "admin-api-smoke", "Lead UTM source did not persist.");
+  assert(lead.utmCampaign === "smoke-run", "Lead UTM campaign did not persist.");
+
+  const { data: leads } = await request("/api/admin/leads", {
+    headers: withCookie(cookie)
+  });
+  assert(
+    leads.some((item) => item.id === lead.id && item.neededBy === "2026-10-25"),
+    "Admin leads payload omitted requested date or the newly created lead."
+  );
+
+  const { data: analytics } = await request("/api/admin/analytics", {
+    headers: withCookie(cookie)
+  });
+  assert(analytics.pageViews >= 1 && analytics.productViews >= 1 && analytics.telegramClicks >= 1);
+  assert(
+    analytics.popularProducts.some((item) => item.slug === "chatgpt-plus-9" && item.views >= 1),
+    "Analytics summary omitted product popularity."
+  );
+  assert(
+    analytics.campaignSources.some((item) => item.source === "admin-api-smoke" && item.leads >= 1),
+    "Analytics summary omitted UTM source attribution."
+  );
 
   const { data: bulkLeads } = await request("/api/admin/leads/bulk", {
     method: "PATCH",

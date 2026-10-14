@@ -19,8 +19,10 @@ assert(address && typeof address !== "string", "Pages smoke server did not expos
 
 const browser = await chromium.launch({ headless: true });
 const errors = [];
+const contentSecurityErrors = [];
 const apiSmokeEnabled = process.env.PAGES_API_SMOKE === "true";
 let mockedLeadPostCount = 0;
+const mockedLeadPayloads = [];
 
 async function installPagesApiMock(page, pageOrigin) {
   if (!apiSmokeEnabled) return;
@@ -43,6 +45,8 @@ async function installPagesApiMock(page, pageOrigin) {
 
     if (request.method() === "POST" && requestUrl.pathname === "/api/leads") {
       mockedLeadPostCount += 1;
+      const payload = JSON.parse(request.postData() ?? "{}");
+      mockedLeadPayloads.push(payload);
       if (mockedLeadPostCount === 1) {
         await route.fulfill({
           status: 503,
@@ -52,12 +56,11 @@ async function installPagesApiMock(page, pageOrigin) {
         return;
       }
 
-      const payload = JSON.parse(request.postData() ?? "{}");
       await route.fulfill({
         status: 201,
         headers: corsHeaders,
         body: JSON.stringify({
-          id: "pages-api-smoke-lead",
+          id: "a1b2c3d4-e5f6-47a8-9b0c-1d2e3f4a5b6c",
           name: payload.name,
           contact: payload.contact,
           message: payload.message,
@@ -80,14 +83,24 @@ async function installPagesApiMock(page, pageOrigin) {
 try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error" && /Content Security Policy|Refused to (?:connect|load|execute)/i.test(message.text())) {
+      contentSecurityErrors.push(message.text());
+    }
+  });
   const baseUrl = `http://127.0.0.1:${address.port}/orenda-cherepashka/`;
+  const initialUrl = apiSmokeEnabled
+    ? `${baseUrl}?utm_source=pages-qa&utm_medium=smoke&utm_campaign=pages-api`
+    : baseUrl;
   await installPagesApiMock(page, new URL(baseUrl).origin);
-  const response = await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+  const response = await page.goto(initialUrl, { waitUntil: "domcontentloaded" });
   assert.equal(response?.status(), 200, "GitHub Pages root did not return HTTP 200.");
 
   const homeHtml = await (await fetch(baseUrl)).text();
   assert.match(homeHtml, /name="robots" content="index,follow"/);
   assert.match(homeHtml, /rel="canonical" href="https:\/\/anton5267\.github\.io\/orenda-cherepashka\//);
+  assert.match(homeHtml, /http-equiv="Content-Security-Policy"/);
+  assert.match(homeHtml, /connect-src[^\"]+orenda-cherepashka\.onrender\.com/);
   assert.doesNotMatch(homeHtml, /orenda-cherepashka\.shop/);
   const robotsResponse = await fetch(`${baseUrl}robots.txt`);
   const robotsText = await robotsResponse.text();
@@ -127,6 +140,8 @@ try {
     await page.getByLabel("Ім'я").fill("Pages API QA");
     await page.getByLabel("Контакт").fill("@pages_api_qa");
     await page.getByLabel("Повідомлення").fill("Mocked Pages to API test");
+    const neededBy = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    await page.getByLabel("Коли потрібна підписка").fill(neededBy);
 
     await page.getByRole("button", { name: /Надіслати/ }).click();
     await page.locator(".form-success").filter({ hasText: "заявка не збережена" }).waitFor();
@@ -136,10 +151,17 @@ try {
 
     await page.getByRole("button", { name: /Надіслати/ }).click();
     await page.waitForFunction(() =>
-      document.querySelector(".form-success")?.textContent?.includes("Заявку відправлено. Вона вже в адмінці.")
+      document.querySelector(".form-success")?.textContent?.includes("Заявку збережено в адмінці. Номер:")
     );
+    assert.match(await page.locator(".form-success").innerText(), /Номер: [A-F0-9]{8}\./);
     assert.equal(mockedLeadPostCount, 2, "Retry did not reach the live API mock.");
-    assert.equal(await page.locator(".form-success a").count(), 0, "Successful lead kept a stale Telegram draft link.");
+    assert.equal(mockedLeadPayloads[1]?.neededBy, neededBy, "Requested date was omitted from the API lead payload.");
+    assert.equal(mockedLeadPayloads[1]?.utmSource, "pages-qa", "UTM source was omitted from the API lead payload.");
+    assert.equal(mockedLeadPayloads[1]?.utmCampaign, "pages-api", "UTM campaign was omitted from the API lead payload.");
+    const savedLeadContactLink = page.locator(".form-success a");
+    assert.equal(await savedLeadContactLink.count(), 1, "Saved lead did not offer a manager follow-up link.");
+    assert.match(await savedLeadContactLink.getAttribute("href"), /^https:\/\/t\.me\/yts_nnn\?text=/);
+    assert.match(await savedLeadContactLink.innerText(), /Написати менеджеру/);
   }
 
   const productResponse = await page.goto(`${baseUrl}p/grok-super-personal`, {
@@ -165,6 +187,7 @@ try {
   assert(gmailSchema?.offers?.every((offer) => offer.priceCurrency === "USD"));
   assert.equal((await fetch(`${baseUrl}legal/privacy/`)).status, 200, "Legal page deep link did not return HTTP 200.");
   assert.deepEqual(errors, [], "Pages reported client-side errors.");
+  assert.deepEqual(contentSecurityErrors, [], "Pages reported a Content Security Policy violation.");
 
   console.log(JSON.stringify({
     ok: true,
@@ -175,6 +198,7 @@ try {
     robotsAndSitemap: "200",
     telegramLinks: "contact, news, reviews",
     pagesApiFlow: apiSmokeEnabled ? "offline fallback and successful retry" : undefined,
+    contentSecurityPolicy: "no violations",
     productDeepLink: "ok",
     mobileOverflow: false
   }, null, 2));

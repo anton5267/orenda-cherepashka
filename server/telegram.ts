@@ -159,7 +159,9 @@ export async function notifyLeadInTelegram(lead: Lead) {
     "Нова заявка з сайту",
     `Ім'я: ${lead.name}`,
     `Контакт: ${lead.contact}`,
+    lead.neededBy ? `Потрібно з: ${lead.neededBy}` : "",
     itemSummary ? `Товари:\n${itemSummary}` : "",
+    lead.utmSource ? `Джерело: ${[lead.utmSource, lead.utmMedium, lead.utmCampaign].filter(Boolean).join(" · ")}` : "",
     lead.message ? `Коментар: ${lead.message}` : "",
     `ID: ${lead.id}`
   ]

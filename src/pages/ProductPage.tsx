@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api, isStaticSite, staticSiteBasePath } from "../api";
+import { preserveUtmAttribution, readUtmAttribution } from "../attribution";
 import type { Product } from "../types";
 import {
   BrandLink,
@@ -54,6 +55,13 @@ export function ProductPage() {
       return;
     }
 
+    void api.trackEvent({
+      eventName: "product_view",
+      path: `/p/${product.slug}`,
+      productSlug: product.slug,
+      ...readUtmAttribution()
+    });
+
     const title = `${product.name} — Orenda Cherepashka`;
     document.title = title;
     setMeta("description", product.summary);
@@ -62,7 +70,7 @@ export function ProductPage() {
     setProperty("og:type", "product");
   }, [product]);
 
-  const homeHref = isStaticSite ? `${staticSiteBasePath}/` : "/";
+  const homeHref = preserveUtmAttribution(isStaticSite ? `${staticSiteBasePath}/` : "/");
 
   if (loading) {
     return (
@@ -93,9 +101,9 @@ export function ProductPage() {
   }
 
   const lowestPlan = getLowestPlan(product);
-  const leadHref = lowestPlan
+  const leadHref = preserveUtmAttribution(lowestPlan
     ? `${homeHref}?product=${encodeURIComponent(product.id)}&plan=${encodeURIComponent(lowestPlan.id)}#lead-form`
-    : `${homeHref}#lead-form`;
+    : `${homeHref}#lead-form`);
 
   return (
     <PageShell>
