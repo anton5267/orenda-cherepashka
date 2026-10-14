@@ -415,35 +415,4 @@ export const seedNews: NewsItem[] = [
   }
 ];
 
-export const seedReviews: Review[] = [
-  {
-    id: "review-1",
-    name: "Олександр К.",
-    rating: 5,
-    content: "Чудовий сервіс. Уже довго користуюся ChatGPT Plus, усе працює стабільно.",
-    sortOrder: 1,
-    isActive: true,
-    isModerated: true,
-    createdAt: "2026-03-18T16:48:54.779Z"
-  },
-  {
-    id: "review-2",
-    name: "Марія П.",
-    rating: 5,
-    content: "Брала Netflix на кілька місяців. Ціна адекватна, доступ дали швидко.",
-    sortOrder: 2,
-    isActive: true,
-    isModerated: true,
-    createdAt: "2026-03-18T16:48:54.792Z"
-  },
-  {
-    id: "review-3",
-    name: "Денис В.",
-    rating: 5,
-    content: "Підключав Gemini Advanced. Вийшло суттєво дешевше за офіційну ціну.",
-    sortOrder: 3,
-    isActive: true,
-    isModerated: true,
-    createdAt: "2026-03-18T16:48:54.803Z"
-  }
-];
+export const seedReviews: Review[] = [];

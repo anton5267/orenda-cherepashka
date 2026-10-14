@@ -138,6 +138,8 @@ The custom domain can then be attached to the Render service from its dashboard.
 
 GitHub Pages also reads the latest public posts from `@arenda_cherepashka`: its Pages workflow fetches the channel before each build and runs every 30 minutes. Use **Actions → Deploy GitHub Pages → Run workflow** to refresh it immediately. This feed needs no bot token; the Render webhook remains available for the server deployment. On the Pages demo, the order form creates a Telegram draft for `@yts_nnn` and does not claim to save the lead in an admin database.
 
+Seed testimonials are intentionally empty. The public page links to the seller's Telegram reviews channel until genuine, moderated customer feedback is added in the admin panel.
+
 ## Production environment
 
 Required production values:

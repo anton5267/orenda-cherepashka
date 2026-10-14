@@ -1313,7 +1313,15 @@ export function HomePage() {
             <Reveal className="section-head">
               <span className="section-kicker">Каталог</span>
               <h2>Наш каталог</h2>
-              <p>Пошук, категорії і сортування вже працюють разом і зберігаються в URL.</p>
+              <p>Пошук, категорії і сортування працюють разом. Наявність та остаточну ціну підтверди в менеджера перед оплатою.</p>
+              <a
+                className="news-channel-link"
+                href={displaySettings.telegramContactUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Уточнити ціну й наявність у Telegram ↗
+              </a>
             </Reveal>
 
             {error ? (
@@ -1690,10 +1698,14 @@ export function HomePage() {
               </div>
 
               <div className="lead-flow-grid">
-                {leadFlowSteps.map((step) => (
+                {leadFlowSteps.map((step, index) => (
                   <article className="lead-flow-card" key={step.title}>
                     <strong>{step.title}</strong>
-                    <p>{step.description}</p>
+                    <p>
+                      {isStaticSite && index === 2
+                        ? "Перевір підготовлений текст і надішли його менеджеру в Telegram."
+                        : step.description}
+                    </p>
                   </article>
                 ))}
               </div>
@@ -1879,7 +1891,7 @@ export function HomePage() {
                   <strong>Що далі</strong>
                   <span>
                     {isStaticSite
-                      ? "У Pages-версії форма працює як швидкий запит; для підтвердження одразу напиши в Telegram."
+                      ? "Після натискання Telegram відкриє чернетку з вибраним товаром і твоїм контактом. Повідомлення надішлеться лише після твого підтвердження."
                       : "Після відправки заявка збережеться в адмінці, а для швидкого зв'язку можна одразу написати в Telegram."}
                   </span>
                 </div>
@@ -1951,17 +1963,27 @@ export function HomePage() {
             <Reveal className="section-head">
               <span className="section-kicker">Відгуки</span>
               <h2>Відгуки наших клієнтів</h2>
-              <p>На вітрині показуються тільки активні модеровані відгуки.</p>
+              <p>Публікуємо відгуки після перевірки; також можна переглянути відгуки в нашому Telegram-каналі.</p>
             </Reveal>
 
             {!reviews.length ? (
               <EmptyState
                 title="Відгуки ще збираються"
-                description="Після перших заявок тут з'являться перевірені відгуки клієнтів."
+                description="Не показуємо вигадані оцінки. Переглянь відгуки клієнтів у Telegram або постав запитання менеджеру."
                 action={
-                  <a className="primary-button compact" href="#lead-form">
-                    Стати першим клієнтом
-                  </a>
+                  <>
+                    <a
+                      className="primary-button compact"
+                      href="https://t.me/cherepashka_vidguk"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Відгуки в Telegram ↗
+                    </a>
+                    <a className="ghost-button compact" href="#lead-form">
+                      Поставити запитання
+                    </a>
+                  </>
                 }
               />
             ) : (
