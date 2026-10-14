@@ -46,7 +46,8 @@ const router = createBrowserRouter(
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </>
-  )
+  ),
+  { basename: isStaticSite ? "/orenda-cherepashka" : undefined }
 );
 
 function App() {
