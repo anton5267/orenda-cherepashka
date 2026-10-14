@@ -56,6 +56,7 @@ type PricingRow = {
   product_id: string;
   label: string;
   price: number;
+  currency: "UAH" | "USD" | null;
   compare_at: number | null;
   sort_order: number;
   is_active: DbBool;
@@ -114,6 +115,7 @@ type LeadItemRow = {
   pricing_option_id: string | null;
   label_snapshot: string;
   unit_price_snapshot: number;
+  currency: "UAH" | "USD" | null;
   compare_at_snapshot: number | null;
   quantity: number;
 };
@@ -305,6 +307,7 @@ function mapPricingOption(row: PricingRow): PricingOption {
     id: row.id,
     label: row.label,
     price: row.price,
+    currency: row.currency === "USD" ? "USD" : "UAH",
     compareAt: row.compare_at,
     sortOrder: row.sort_order,
     isActive: intToBool(row.is_active)
@@ -380,6 +383,7 @@ function mapLeadItem(row: LeadItemRow): LeadItem {
     pricingOptionId: row.pricing_option_id,
     labelSnapshot: row.label_snapshot,
     unitPriceSnapshot: row.unit_price_snapshot,
+    currency: row.currency === "USD" ? "USD" : "UAH",
     compareAtSnapshot: row.compare_at_snapshot,
     quantity: row.quantity
   };
@@ -444,7 +448,8 @@ function ensureSchema() {
       id TEXT PRIMARY KEY,
       product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
       label TEXT NOT NULL,
-      price INTEGER NOT NULL,
+      price REAL NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'UAH',
       compare_at INTEGER,
       sort_order INTEGER NOT NULL DEFAULT 0,
       is_active INTEGER NOT NULL DEFAULT 1
@@ -502,7 +507,8 @@ function ensureSchema() {
       product_id TEXT NOT NULL,
       pricing_option_id TEXT,
       label_snapshot TEXT NOT NULL,
-      unit_price_snapshot INTEGER NOT NULL,
+      unit_price_snapshot REAL NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'UAH',
       compare_at_snapshot INTEGER,
       quantity INTEGER NOT NULL DEFAULT 1
     );
@@ -533,6 +539,14 @@ function ensureCompatibilityMigrations() {
   ensureColumn("news", "source_message_id", "INTEGER");
   ensureColumn("news", "published_at", "TEXT");
   ensureColumn("reviews", "updated_at", "TEXT");
+  ensureColumn("pricing_options", "currency", "TEXT NOT NULL DEFAULT 'UAH'");
+  ensureColumn("lead_items", "currency", "TEXT NOT NULL DEFAULT 'UAH'");
+
+  db.prepare(
+    `INSERT OR IGNORE INTO categories (id, name, slug, icon, sort_order, is_active, updated_at)
+     SELECT ?, ?, ?, ?, ?, ?, ?
+     WHERE EXISTS (SELECT 1 FROM settings WHERE singleton_key = 1)`
+  ).run("cat-productivity", "Продуктивність", "productivity", "🧰", 6, 1, nowIso());
 
   const timestamp = nowIso();
   db.prepare("UPDATE categories SET updated_at = COALESCE(updated_at, ?)").run(timestamp);
@@ -632,10 +646,11 @@ function ensureSeed() {
           product_id,
           label,
           price,
+          currency,
           compare_at,
           sort_order,
           is_active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `
     );
 
@@ -660,6 +675,7 @@ function ensureSeed() {
           product.id,
           pricingOption.label,
           pricingOption.price,
+          pricingOption.currency,
           pricingOption.compareAt,
           pricingOption.sortOrder,
           boolToInt(pricingOption.isActive)
@@ -965,7 +981,9 @@ function normalizePricingOptions(options: unknown) {
     return {
       id: typeof raw.id === "string" && raw.id ? raw.id : randomUUID(),
       label: normalizeText(raw.label, `pricingOptions[${index}].label`),
-      price: Math.round(normalizeNumber(raw.price)),
+      price: Math.round(normalizeNumber(raw.price) * (raw.currency === "USD" ? 100 : 1)) /
+        (raw.currency === "USD" ? 100 : 1),
+      currency: raw.currency === "USD" ? "USD" : "UAH",
       compareAt:
         rawCompareAt === null ||
         rawCompareAt === undefined ||
@@ -1044,6 +1062,7 @@ function createLeadSnapshotItem(
     pricingOptionId: chosenOption.id,
     labelSnapshot: `${product.name} — ${chosenOption.label}`,
     unitPriceSnapshot: chosenOption.price,
+    currency: chosenOption.currency,
     compareAtSnapshot: chosenOption.compareAt,
     quantity
   };
@@ -1105,6 +1124,7 @@ function buildLegacyLeadItemsFallback(productId: string | null) {
         pricingOptionId: null,
         labelSnapshot: productId,
         unitPriceSnapshot: 0,
+        currency: "UAH" as const,
         compareAtSnapshot: null,
         quantity: 1
       }
@@ -1122,9 +1142,10 @@ function insertLeadItems(leadId: string, items: NormalizedLeadItem[]) {
         pricing_option_id,
         label_snapshot,
         unit_price_snapshot,
+        currency,
         compare_at_snapshot,
         quantity
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
   );
 
@@ -1136,6 +1157,7 @@ function insertLeadItems(leadId: string, items: NormalizedLeadItem[]) {
       item.pricingOptionId,
       item.labelSnapshot,
       item.unitPriceSnapshot,
+      item.currency,
       item.compareAtSnapshot,
       item.quantity
     );
@@ -1463,10 +1485,11 @@ export function createProduct(payload: Partial<Product>) {
           product_id,
           label,
           price,
+          currency,
           compare_at,
           sort_order,
           is_active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `
     );
 
@@ -1476,6 +1499,7 @@ export function createProduct(payload: Partial<Product>) {
         id,
         option.label,
         option.price,
+        option.currency,
         option.compareAt,
         option.sortOrder,
         boolToInt(option.isActive)
@@ -1544,10 +1568,11 @@ export function updateProduct(id: string, payload: Partial<Product>) {
           product_id,
           label,
           price,
+          currency,
           compare_at,
           sort_order,
           is_active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `
     );
 
@@ -1557,6 +1582,7 @@ export function updateProduct(id: string, payload: Partial<Product>) {
         id,
         option.label,
         option.price,
+        option.currency,
         option.compareAt,
         option.sortOrder,
         boolToInt(option.isActive)

@@ -34,330 +34,119 @@ export const seedCategories: Category[] = [
     icon: "🎨",
     sortOrder: 5,
     isActive: true
+  },
+  {
+    id: "cat-productivity",
+    name: "Продуктивність",
+    slug: "productivity",
+    icon: "🧰",
+    sortOrder: 6,
+    isActive: true
   }
 ];
 
+type Currency = PricingOption["currency"];
+
+function plan(label: string, price: number, sortOrder: number, currency: Currency = "UAH") {
+  return { label, price, currency, compareAt: null, sortOrder, isActive: true };
+}
+
+function monthlyPlans(oneMonth: number, threePlusMonths: number) {
+  return [
+    plan("1 міс · за місяць", oneMonth, 1),
+    plan("від 3 міс · за місяць", threePlusMonths, 2)
+  ];
+}
+
+function makeProduct(
+  id: string,
+  name: string,
+  slug: string,
+  categoryId: string,
+  summary: string,
+  logo: string,
+  pricingOptions: SeedProduct["pricingOptions"],
+  sortOrder: number
+): SeedProduct {
+  return {
+    id,
+    name,
+    slug,
+    categoryId,
+    summary,
+    details: [
+      "Оберіть потрібний варіант тарифу на сайті.",
+      "Перед оплатою уточніть актуальну наявність і умови у менеджера."
+    ],
+    logo,
+    isHot: false,
+    isActive: true,
+    sortOrder,
+    pricingOptions
+  };
+}
+
+const chatGptLogo = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/960px-ChatGPT-Logo.svg.png";
+const grokLogo = "https://www.nan.xyz/wp-content/uploads/grok-seeklogo-.svg";
+const geminiLogo = "https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/gemini-color.png";
+const netflixLogo = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Netflix_2016_N_logo.svg/500px-Netflix_2016_N_logo.svg.png";
+const capCutLogo = "https://1000logos.net/wp-content/uploads/2025/01/CapCut-Emblem.png";
+const perplexityLogo = "https://images.seeklogo.com/logo-png/61/2/perplexity-ai-icon-black-logo-png_seeklogo-611679.png";
+const adobeLogo = "https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/adobe-color.png";
+const youtubeLogo = "https://upload.wikimedia.org/wikipedia/commons/e/ef/Youtube_logo.png";
+const spotifyLogo = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Spotify_logo_without_text.svg/960px-Spotify_logo_without_text.svg.png";
+const canvaLogo = "https://www.edigitalagency.com.au/wp-content/uploads/Canva-logo-PNG-large-size.png";
+
 export const seedProducts: SeedProduct[] = [
-  {
-    id: "grok-super",
-    name: "Grok Super",
-    slug: "grok-super",
-    categoryId: "cat-ai",
-    summary: "Мінімум цензури, фото та відео, великі ліміти на генерацію.",
-    details: [
-      "Підходить для текстових, файлових і мультимедійних сценаріїв.",
-      "Є генерація фото та відео, а також збільшені добові ліміти.",
-      "Формат оренди з можливістю подовження."
-    ],
-    logo: "https://www.nan.xyz/wp-content/uploads/grok-seeklogo-.svg",
-    isHot: true,
-    isActive: true,
-    sortOrder: 1,
-    pricingOptions: [
-      { label: "Лайт", price: 175, compareAt: 1300, sortOrder: 1, isActive: true },
-      { label: "Медіум", price: 480, compareAt: 3900, sortOrder: 2, isActive: true },
-      { label: "Ультра", price: 900, compareAt: 7800, sortOrder: 3, isActive: true }
-    ]
-  },
-  {
-    id: "chatgpt-plus-shared",
-    name: "ChatGPT Plus",
-    slug: "chatgpt-plus",
-    categoryId: "cat-ai",
-    summary: "Спільний акаунт Plus з генерацією зображень та довгими планами.",
-    details: [
-      "Доступ до тарифу Plus у форматі спільного акаунту.",
-      "Є інструменти для генерації зображень та бонусні відеоможливості.",
-      "Зручно для регулярної оренди на місяць або квартал."
-    ],
-    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/960px-ChatGPT-Logo.svg.png",
-    isHot: true,
-    isActive: true,
-    sortOrder: 2,
-    pricingOptions: [
-      { label: "1 місяць", price: 199, compareAt: 249, sortOrder: 1, isActive: true },
-      { label: "3 місяці", price: 549, compareAt: 747, sortOrder: 2, isActive: true }
-    ]
-  },
-  {
-    id: "gemini-pro",
-    name: "Gemini [Pro]",
-    slug: "gemini-pro",
-    categoryId: "cat-ai",
-    summary: "Google AI Pro з доступом до Studio, зображень, відео та сховища.",
-    details: [
-      "Підписка Pro із доступом до Google AI Studio.",
-      "Є інструменти для генерації зображень і відео.",
-      "Підійде для користувачів, яким потрібен екосистемний Google-набір."
-    ],
-    logo: "https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/gemini-color.png",
-    isHot: true,
-    isActive: true,
-    sortOrder: 3,
-    pricingOptions: [
-      { label: "Лайт", price: 120, compareAt: 999, sortOrder: 1, isActive: true },
-      { label: "Медіум", price: 330, compareAt: 2970, sortOrder: 2, isActive: true }
-    ]
-  },
-  {
-    id: "perplexity-pro",
-    name: "Perplexity PRO",
-    slug: "perplexity-pro",
-    categoryId: "cat-ai",
-    summary: "ШІ-пошук із доступом до декількох платних моделей і браузера Comet.",
-    details: [
-      "Пошук і генерація відповідей з підтримкою кількох моделей.",
-      "Є окремий AI-браузер та розширений пакет функцій.",
-      "Підходить для досліджень, резюме та щоденної роботи з інформацією."
-    ],
-    logo: "https://images.seeklogo.com/logo-png/61/2/perplexity-ai-icon-black-logo-png_seeklogo-611679.png",
-    isHot: false,
-    isActive: true,
-    sortOrder: 4,
-    pricingOptions: [
-      { label: "Лайт", price: 115, compareAt: 820, sortOrder: 1, isActive: true },
-      { label: "Медіум", price: 320, compareAt: 2460, sortOrder: 2, isActive: true },
-      { label: "Ультра", price: 600, compareAt: 4920, sortOrder: 3, isActive: true }
-    ]
-  },
-  {
-    id: "chatgpt-plus-personal",
-    name: "ChatGPT Plus ⚡",
-    slug: "chatgpt-plus-personal",
-    categoryId: "cat-ai",
-    summary: "Індивідуальний доступ до Plus для одного користувача.",
-    details: [
-      "Формат для персонального користування без поділу на інших людей.",
-      "Є підтримка генерації зображень та актуальних Plus-функцій.",
-      "Підходить тим, кому потрібен окремий профіль."
-    ],
-    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/960px-ChatGPT-Logo.svg.png",
-    isHot: false,
-    isActive: true,
-    sortOrder: 5,
-    pricingOptions: [
-      { label: "Щомісячний", price: 329, compareAt: 990, sortOrder: 1, isActive: true }
-    ]
-  },
-  {
-    id: "adobe-creative-cloud",
-    name: "Adobe Creative Cloud",
-    slug: "adobe-creative-cloud",
-    categoryId: "cat-ai",
-    summary: "Набір програм Adobe з Firefly-кредитами та доступом до 20+ застосунків.",
-    details: [
-      "Пакет для дизайну, монтажу, графіки та AI-інструментів Adobe.",
-      "Є варіант спільного або персонального доступу.",
-      "Підходить для творчих задач та виробництва контенту."
-    ],
-    logo: "https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/adobe-color.png",
-    isHot: false,
-    isActive: true,
-    sortOrder: 6,
-    pricingOptions: [
-      { label: "Спільний", price: 349, compareAt: 2580, sortOrder: 1, isActive: true },
-      { label: "Персональний", price: 449, compareAt: 2580, sortOrder: 2, isActive: true }
-    ]
-  },
-  {
-    id: "netflix-premium",
-    name: "Netflix Premium",
-    slug: "netflix-premium",
-    categoryId: "cat-streaming",
-    summary: "Окремий профіль Netflix Premium 4K з вигідними довгими планами.",
-    details: [
-      "Спільний акаунт із виділеним профілем для користувача.",
-      "Доступ до Premium 4K та подовження підписки.",
-      "Підійде для серіалів, фільмів і регулярного користування."
-    ],
-    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Netflix_2016_N_logo.svg/500px-Netflix_2016_N_logo.svg.png",
-    isHot: true,
-    isActive: true,
-    sortOrder: 7,
-    pricingOptions: [
-      { label: "1 місяць", price: 149, compareAt: 199, sortOrder: 1, isActive: true },
-      { label: "3 місяці", price: 399, compareAt: 597, sortOrder: 2, isActive: true }
-    ]
-  },
-  {
-    id: "youtube-premium",
-    name: "YouTube Premium [UA]",
-    slug: "youtube-premium-ua",
-    categoryId: "cat-streaming",
-    summary: "Преміум-сім'я для вашого акаунту без реклами та з YouTube Music.",
-    details: [
-      "Запрошення вашого особистого акаунту до Premium-сім'ї.",
-      "Підписка орієнтована на український регіон.",
-      "Дає відключення реклами та музичний пакет."
-    ],
-    logo: "https://upload.wikimedia.org/wikipedia/commons/e/ef/Youtube_logo.png",
-    isHot: false,
-    isActive: true,
-    sortOrder: 8,
-    pricingOptions: [
-      { label: "Лайт", price: 59, compareAt: 159, sortOrder: 1, isActive: true },
-      { label: "Медіум", price: 165, compareAt: 477, sortOrder: 2, isActive: true },
-      { label: "Ультра", price: 300, compareAt: 954, sortOrder: 3, isActive: true }
-    ]
-  },
-  {
-    id: "capcut-pro",
-    name: "CapCut Pro",
-    slug: "capcut-pro",
-    categoryId: "cat-streaming",
-    summary: "PRO-доступ до монтажу, шаблонів, AI-функцій і веб/ПК/мобільного входу.",
-    details: [
-      "Підходить для редагування відео та швидкого контент-продакшену.",
-      "Є AI-функції, шаблони та окремий робочий простір.",
-      "Орієнтовано на авторів коротких та середніх відеоформатів."
-    ],
-    logo: "https://1000logos.net/wp-content/uploads/2025/01/CapCut-Emblem.png",
-    isHot: false,
-    isActive: true,
-    sortOrder: 9,
-    pricingOptions: [
-      { label: "Лайт", price: 149, compareAt: 870, sortOrder: 1, isActive: true },
-      { label: "Медіум", price: 390, compareAt: 2610, sortOrder: 2, isActive: true }
-    ]
-  },
-  {
-    id: "sora-invite",
-    name: "Sora 2 [інвайт]",
-    slug: "sora-2-invite",
-    categoryId: "cat-streaming",
-    summary: "Запрошення до генерації відео з короткими роликами та денними лімітами.",
-    details: [
-      "Формат оренди через інвайт на відеогенерацію.",
-      "Працює у зв'язці з ChatGPT та орієнтований на короткі ролики.",
-      "Потрібен VPN у США або Канаді."
-    ],
-    logo: "https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/sora-color.png",
-    isHot: false,
-    isActive: true,
-    sortOrder: 10,
-    pricingOptions: [
-      { label: "1 запрошення", price: 59, compareAt: 990, sortOrder: 1, isActive: true }
-    ]
-  },
-  {
-    id: "surfshark-vpn",
-    name: "Surfshark VPN",
-    slug: "surfshark-vpn",
-    categoryId: "cat-vpn",
-    summary: "VPN Starter для кількох пристроїв зі зміною IP та блокуванням реклами.",
-    details: [
-      "Має підтримку ПК і смартфонів, до кількох пристроїв одночасно.",
-      "Дає зміну IP та базовий пакет приватності.",
-      "Зручно для постійного використання у браузері й застосунках."
-    ],
-    logo: "https://ameliaandjp.com/wp-content/uploads/2024/08/Surfshark-Logo-300x300.png",
-    isHot: false,
-    isActive: true,
-    sortOrder: 11,
-    pricingOptions: [
-      { label: "Лайт", price: 95, compareAt: 645, sortOrder: 1, isActive: true },
-      { label: "Медіум", price: 270, compareAt: 1950, sortOrder: 2, isActive: true }
-    ]
-  },
-  {
-    id: "clear-vpn",
-    name: "Clear VPN [назавжди]",
-    slug: "clear-vpn-forever",
-    categoryId: "cat-vpn",
-    summary: "Преміум VPN з доступом назавжди та серверами в Україні, США й Європі.",
-    details: [
-      "Підключення преміум-пакету на ваш email без обмеження строку.",
-      "Є десятки країн та підтримка мобільного і десктопного доступу.",
-      "Підходить для тих, хто хоче одноразову покупку замість щомісячної оренди."
-    ],
-    logo: "https://cdn3.macpaw.com/images/product-icons/clearvpn/clearvpn4x.png?id=2a2c609825db25ebf665e09fc17db71c",
-    isHot: false,
-    isActive: true,
-    sortOrder: 12,
-    pricingOptions: [
-      { label: "Назавжди", price: 249, compareAt: 1349, sortOrder: 1, isActive: true }
-    ]
-  },
-  {
-    id: "spotify-premium",
-    name: "Spotify Premium",
-    slug: "spotify-premium",
-    categoryId: "cat-music",
-    summary: "Spotify без реклами, з офлайном та високою якістю звуку.",
-    details: [
-      "Запрошення особистого акаунту до преміум-сім'ї.",
-      "Є офлайн-режим і висока якість відтворення.",
-      "Підійде для щоденного прослуховування музики на будь-яких пристроях."
-    ],
-    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Spotify_logo_without_text.svg/960px-Spotify_logo_without_text.svg.png",
-    isHot: false,
-    isActive: true,
-    sortOrder: 13,
-    pricingOptions: [
-      { label: "1 місяць", price: 89, compareAt: 119, sortOrder: 1, isActive: true },
-      { label: "3 місяці", price: 239, compareAt: 357, sortOrder: 2, isActive: true }
-    ]
-  },
-  {
-    id: "gemini-personal",
-    name: "Gemini PRO [особистий]",
-    slug: "gemini-pro-personal",
-    categoryId: "cat-music",
-    summary: "Персональна підписка Google AI Pro на окремий або ваш акаунт.",
-    details: [
-      "Підключення підписки Pro на персональний акаунт.",
-      "Є доступ до сучасних функцій, глибокого ресерчу та мультимедіа.",
-      "Підходить для тих, кому потрібна гарантія персонального формату."
-    ],
-    logo: "https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/dark/gemini-color.png",
-    isHot: false,
-    isActive: true,
-    sortOrder: 14,
-    pricingOptions: [
-      { label: "4 місяці", price: 449, compareAt: 2970, sortOrder: 1, isActive: true }
-    ]
-  },
-  {
-    id: "canva-pro",
-    name: "Canva PRO",
-    slug: "canva-pro",
-    categoryId: "cat-presentations",
-    summary: "Преміум-шаблони, дизайн, відео та презентації у зручному вебсервісі.",
-    details: [
-      "Спільний акаунт із доступом до PRO-функцій.",
-      "Є шаблони для соцмереж, презентацій, брендингу й маркетингу.",
-      "Підходить для швидкого дизайну без складних програм."
-    ],
-    logo: "https://www.edigitalagency.com.au/wp-content/uploads/Canva-logo-PNG-large-size.png",
-    isHot: false,
-    isActive: true,
-    sortOrder: 15,
-    pricingOptions: [
-      { label: "1 місяць", price: 149, compareAt: 199, sortOrder: 1, isActive: true },
-      { label: "3 місяці", price: 399, compareAt: 597, sortOrder: 2, isActive: true }
-    ]
-  },
-  {
-    id: "gamma-ai",
-    name: "Gamma AI",
-    slug: "gamma-ai",
-    categoryId: "cat-presentations",
-    summary: "Платформа для створення презентацій, документів, зображень і сайтів.",
-    details: [
-      "Дає кредити на генерацію та швидке складання презентацій.",
-      "Може стати заміною звичним слайд-декам для швидких задач.",
-      "Підходить для продажів, навчання та візуальних чернеток."
-    ],
-    logo: "https://www.wpcrafter.com/wp-content/uploads/2024/08/gamma-1.png",
-    isHot: false,
-    isActive: true,
-    sortOrder: 16,
-    pricingOptions: [
-      { label: "Лайт", price: 259, compareAt: 1120, sortOrder: 1, isActive: true },
-      { label: "Медіум", price: 720, compareAt: 3360, sortOrder: 2, isActive: true },
-      { label: "Ультра", price: 1140, compareAt: 6720, sortOrder: 3, isActive: true }
-    ]
-  }
+  makeProduct("chatgpt-pro-shared", "📱 ChatGPT Pro [спільний до 5–6 користувачів]", "chatgpt-pro-shared", "cat-ai", "Спільний формат для 5–6 користувачів. Виберіть Codex або варіант без Codex.", chatGptLogo, [
+    plan("1 міс · +Codex", 1390, 1),
+    plan("1 міс · без Codex", 1100, 2),
+    plan("3+ міс · +Codex / міс", 1250, 3),
+    plan("3+ міс · без Codex / міс", 1000, 4)
+  ], 1),
+  makeProduct("chatgpt-plus-shared", "📱 ChatGPT Plus [спільний до 9 користувачів]", "chatgpt-plus-9", "cat-ai", "Спільний доступ до ChatGPT Plus до 9 користувачів.", chatGptLogo, monthlyPlans(110, 100), 2),
+  makeProduct("chatgpt-plus-shared-5", "📱 ChatGPT Plus [спільний до 5 користувачів]", "chatgpt-plus-5", "cat-ai", "Спільний доступ до ChatGPT Plus до 5 користувачів.", chatGptLogo, monthlyPlans(280, 260), 3),
+  makeProduct("chatgpt-plus-personal-no-guarantee", "📱 ChatGPT Plus [особистий без гарантії]", "chatgpt-plus-personal-no-guarantee", "cat-ai", "Особистий формат ChatGPT Plus без гарантії.", chatGptLogo, [plan("1 міс · за місяць", 250, 1)], 4),
+  makeProduct("chatgpt-plus-personal-15-day-guarantee", "📱 ChatGPT Plus [особистий, гарантія 15 днів]", "chatgpt-plus-personal-guarantee", "cat-ai", "Особистий формат ChatGPT Plus із гарантією 15 днів.", chatGptLogo, [plan("1 міс · за місяць", 350, 1)], 5),
+  makeProduct("netflix-profile", "📹 Netflix Premium 4K [доступ у профіль]", "netflix-premium-profile", "cat-streaming", "Доступ до профілю Netflix Premium 4K.", netflixLogo, monthlyPlans(130, 115), 6),
+  makeProduct("netflix-personal-admin", "📹 Netflix Premium 4K [особистий адм. акаунт]", "netflix-premium-personal-admin", "cat-streaming", "Особистий адміністраторський акаунт Netflix Premium 4K.", netflixLogo, [plan("1 міс · за місяць", 280, 1)], 7),
+  makeProduct(
+    "grok-super",
+    "🏷 Grok Super [особистий]",
+    "grok-super-personal",
+    "cat-ai",
+    "Особистий формат Grok Super: 800 грн за 1 місяць або 2200 грн за пакет на 3 місяці.",
+    grokLogo,
+    [plan("1 міс · за місяць", 800, 1), plan("3 міс · за пакет", 2200, 2)],
+    8
+  ),
+  makeProduct("grok-super-shared", "🏷 Grok Super [спільний]", "grok-super-shared", "cat-ai", "Спільний формат Grok Super.", grokLogo, monthlyPlans(185, 165), 9),
+  makeProduct("capcut-pro", "📱 CapCut Pro [спільний]", "capcut-pro-shared", "cat-presentations", "Спільний доступ до CapCut Pro.", capCutLogo, monthlyPlans(160, 150), 10),
+  makeProduct("capcut-pro-personal", "📱 CapCut Pro [особистий]", "capcut-pro-personal", "cat-presentations", "Особистий доступ до CapCut Pro.", capCutLogo, monthlyPlans(350, 300), 11),
+  makeProduct("gemini-pro", "🏷 Gemini Pro [спільний]", "gemini-pro-shared", "cat-ai", "Спільний доступ до Gemini Pro.", geminiLogo, monthlyPlans(130, 115), 12),
+  makeProduct("google-ai-pro-18-months", "🏷 Google AI Pro 18 міс [на особистий акаунт]", "google-ai-pro-18-months", "cat-ai", "Підключення Google AI Pro на особистий акаунт на 18 місяців.", geminiLogo, [plan("18 міс · 1 штука", 790, 1), plan("18 міс · від 2 штук · ціна за штуку", 700, 2)], 13),
+  makeProduct("perplexity-pro", "❤️ Perplexity Pro [спільний]", "perplexity-pro-shared", "cat-ai", "Спільний доступ до Perplexity Pro.", perplexityLogo, monthlyPlans(130, 110), 14),
+  makeProduct("perplexity-pro-personal-12-months", "❤️ Perplexity Pro [особистий 12 міс]", "perplexity-pro-personal-12-months", "cat-ai", "Особистий доступ до Perplexity Pro на 12 місяців.", perplexityLogo, [plan("12 міс · за пакет", 3290, 1)], 15),
+  makeProduct("gamma-ai", "🌈 Gamma AI [спільний]", "gamma-ai-shared", "cat-presentations", "Спільний доступ до Gamma AI.", "", monthlyPlans(230, 215), 16),
+  makeProduct("adobe-creative-cloud-shared", "🏷 Adobe Creative Cloud Pro [спільний]", "adobe-creative-cloud-pro-shared", "cat-presentations", "Спільний доступ до Adobe Creative Cloud Pro.", adobeLogo, monthlyPlans(330, 300), 17),
+  makeProduct("adobe-creative-cloud-personal", "🏷 Adobe Creative Cloud Pro [особистий без гарантії]", "adobe-creative-cloud-pro-personal", "cat-presentations", "Особистий формат Adobe Creative Cloud Pro без гарантії.", adobeLogo, monthlyPlans(380, 350), 18),
+  makeProduct("megogo-megopack", "🎬 MEGOGO [MegoPack]", "megogo-megopack", "cat-streaming", "Тариф MegoPack із ціною за пристрій.", "", [plan("1 міс · за пристрій", 135, 1), plan("від 3 міс · за пристрій / міс", 120, 2)], 19),
+  makeProduct("youtube-family", "🌐 YouTube [у сім'ю]", "youtube-family", "cat-streaming", "Запрошення до сімейного плану YouTube.", youtubeLogo, monthlyPlans(65, 60), 20),
+  makeProduct("sweet-tv-l", "🎬 Sweet TV [L]", "sweet-tv-l", "cat-streaming", "Тариф Sweet TV L.", "", monthlyPlans(95, 85), 21),
+  makeProduct("spotify-family", "🎵 Spotify [Premium Family]", "spotify-premium-family", "cat-music", "Місце у Spotify Premium Family.", spotifyLogo, monthlyPlans(100, 90), 22),
+  makeProduct("microsoft-365-family", "🌐 Microsoft 365 [Family]", "microsoft-365-family", "cat-productivity", "Місце у плані Microsoft 365 Family.", "", monthlyPlans(150, 140), 23),
+  makeProduct("duolingo-super-family", "👅 Duolingo Super [Family]", "duolingo-super-family", "cat-productivity", "Місце у плані Duolingo Super Family.", "", monthlyPlans(120, 110), 24),
+  makeProduct("leonardo-ai-personal", "😶 Leonardo AI 8500 credits [особистий]", "leonardo-ai-8500-credits", "cat-ai", "Особистий план Leonardo AI із 8500 кредитами.", "", [plan("8500 credits · за пакет", 320, 1)], 25),
+  makeProduct("surfshark-vpn", "🏷 Surfshark", "surfshark", "cat-vpn", "Підписка Surfshark.", "https://ameliaandjp.com/wp-content/uploads/2024/08/Surfshark-Logo-300x300.png", monthlyPlans(95, 85), 26),
+  makeProduct("heygen-creator-personal", "😊 HeyGen Creator [особистий]", "heygen-creator-personal", "cat-ai", "Особистий план HeyGen Creator.", "", [plan("1 міс · за місяць", 550, 1)], 27),
+  makeProduct("clear-vpn", "🔗 Clear VPN [назавжди]", "clear-vpn-forever", "cat-vpn", "Постійний доступ до Clear VPN.", "https://cdn3.macpaw.com/images/product-icons/clearvpn/clearvpn4x.png?id=2a2c609825db25ebf665e09fc17db71c", [plan("назавжди · за 1 штуку", 250, 1)], 28),
+  makeProduct("gmail-mailbox", "✉️ Gmail пошта", "gmail-mailbox", "cat-productivity", "Ціна за одну поштову скриньку залежить від обсягу замовлення.", "", [plan("5–10 шт · за штуку", 1.9, 1, "USD"), plan("від 11 шт · за штуку", 1.7, 2, "USD")], 29),
+  makeProduct("canva-pro", "🖥 Canva Pro [спільний]", "canva-pro-shared", "cat-presentations", "Спільний доступ до Canva Pro.", canvaLogo, monthlyPlans(120, 110), 30),
+  makeProduct("canva-pro-personal-team", "🖥 Canva Pro [особистий, у команду]", "canva-pro-personal-team", "cat-presentations", "Особистий доступ до Canva Pro у командному форматі.", canvaLogo, monthlyPlans(190, 170), 31),
+  makeProduct("hbo-premium", "🎥 HBO Premium", "hbo-premium", "cat-streaming", "Підписка HBO Premium.", "", monthlyPlans(180, 160), 32),
+  makeProduct("amazon-prime-video-6-months", "🎬 Amazon Prime Video 6 Month Adsfree", "amazon-prime-video-6-months-adsfree", "cat-streaming", "Пакет Amazon Prime Video на 6 місяців без реклами.", "", [plan("6 міс · за пакет", 550, 1)], 33),
+  makeProduct("figma-pro-personal-1-year", "📱 Figma Pro [1 рік, особистий]", "figma-pro-personal-1-year", "cat-presentations", "Особистий план Figma Pro на один рік.", "", [plan("1 рік · за пакет", 790, 1)], 34),
+  makeProduct("elevenlabs-creator-131k", "🐦 ELEVENLABS 131K credits, Creator Plan [особистий]", "elevenlabs-creator-131k", "cat-ai", "Особистий Creator Plan ElevenLabs із 131K credits.", "", [plan("131K credits · за пакет", 590, 1)], 35)
 ];
 
 export const seedFaqs: FaqItem[] = [

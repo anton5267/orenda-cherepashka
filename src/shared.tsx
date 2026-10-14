@@ -5,11 +5,26 @@ import {
   useRef,
   useState
 } from "react";
-import type { Product } from "../shared/models";
+import type { PricingOption, Product } from "../shared/models";
 import { useTheme } from "./theme";
 
-export function formatPrice(value: number) {
-  return `${new Intl.NumberFormat("uk-UA").format(value)} грн`;
+export function formatPrice(
+  value: number | Pick<PricingOption, "price" | "currency">,
+  currency: PricingOption["currency"] = "UAH"
+) {
+  const amount = typeof value === "number" ? value : value.price;
+  const selectedCurrency = typeof value === "number" ? currency : value.currency;
+
+  if (selectedCurrency === "USD") {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  }
+
+  return `${new Intl.NumberFormat("uk-UA").format(amount)} грн`;
 }
 
 export function getLowestPlan(product: Product) {
@@ -53,7 +68,7 @@ export function ProductLogo({
   alt: string;
   fallback: string;
 }) {
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState(!src);
 
   return (
     <div className="product-logo">

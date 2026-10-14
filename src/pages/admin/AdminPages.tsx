@@ -487,6 +487,7 @@ function createEmptyPricingOption(sortOrder = 1): PricingOption {
     id: "",
     label: "",
     price: 0,
+    currency: "UAH",
     compareAt: null,
     sortOrder,
     isActive: true
@@ -651,10 +652,25 @@ function PricingOptionsEditor({
                 type="number"
                 value={option.price}
                 min="0"
+                step={option.currency === "USD" ? "0.01" : "1"}
                 onChange={(event) =>
                   updateOption(index, { price: Number(event.target.value) })
                 }
               />
+            </label>
+            <label>
+              Валюта
+              <select
+                value={option.currency}
+                onChange={(event) =>
+                  updateOption(index, {
+                    currency: event.target.value === "USD" ? "USD" : "UAH"
+                  })
+                }
+              >
+                <option value="UAH">UAH · грн</option>
+                <option value="USD">USD · $</option>
+              </select>
             </label>
             <label>
               Стара ціна
@@ -697,8 +713,8 @@ function PricingOptionsEditor({
               <span>Preview ціни для каталогу</span>
             </div>
             <div className="pricing-preview-value">
-              <strong>{formatPrice(option.price)}</strong>
-              {!option.compareAt ? null : <s>{formatPrice(option.compareAt)}</s>}
+              <strong>{formatPrice(option)}</strong>
+              {!option.compareAt ? null : <s>{formatPrice(option.compareAt, option.currency)}</s>}
             </div>
           </div>
         </div>
@@ -2308,7 +2324,7 @@ export function AdminProductsPage() {
                         {item.isHot ? <StatusBadge tone="warning">Хіт</StatusBadge> : null}
                         <StatusBadge tone="muted">Порядок: {item.sortOrder}</StatusBadge>
                         <StatusBadge tone="accent">
-                          {lowestPlan ? formatPrice(lowestPlan.price) : "Без тарифів"}
+                          {lowestPlan ? formatPrice(lowestPlan) : "Без тарифів"}
                         </StatusBadge>
                       </div>
 
@@ -4823,10 +4839,10 @@ export function AdminLeadsPage() {
                         <div className="lead-item-row" key={leadItem.id}>
                           <strong>{leadItem.labelSnapshot}</strong>
                           <span>
-                            {leadItem.quantity} × {formatPrice(leadItem.unitPriceSnapshot)}
+                            {leadItem.quantity} × {formatPrice(leadItem.unitPriceSnapshot, leadItem.currency)}
                           </span>
                           {!leadItem.compareAtSnapshot ? null : (
-                            <small>Було: {formatPrice(leadItem.compareAtSnapshot)}</small>
+                            <small>Було: {formatPrice(leadItem.compareAtSnapshot, leadItem.currency)}</small>
                           )}
                         </div>
                       ))}

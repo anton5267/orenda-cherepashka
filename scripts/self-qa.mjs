@@ -1489,6 +1489,30 @@ async function runPublicChecks(browser) {
     "Hero subtitle did not render expected services text."
   );
 
+  const initialCatalogCards = page.locator(".product-card");
+  await initialCatalogCards.filter({ hasText: "ELEVENLABS 131K credits" }).waitFor();
+  assert(
+    (await initialCatalogCards.count()) === 35,
+    "Public catalog did not render all 35 items from the seller's price list."
+  );
+  const gmailCard = initialCatalogCards.filter({ hasText: "Gmail пошта" }).first();
+  assert(
+    (await gmailCard.locator(".plan-chip").filter({ hasText: "$1.90" }).count()) === 1 &&
+      (await gmailCard.locator(".plan-chip").filter({ hasText: "$1.70" }).count()) === 1,
+    "Gmail quantity prices were not rendered in USD."
+  );
+  const chatGptProCard = initialCatalogCards.filter({ hasText: "ChatGPT Pro" }).first();
+  assert(
+    (await chatGptProCard.locator(".plan-chip").count()) === 4,
+    "ChatGPT Pro did not show all four Codex and multi-month price options."
+  );
+  const grokPersonalCard = initialCatalogCards.filter({ hasText: "Grok Super [особистий]" }).first();
+  assert(
+    (await grokPersonalCard.locator(".plan-chip").filter({ hasText: "800 грн" }).count()) === 1 &&
+      (await grokPersonalCard.locator(".plan-chip").filter({ hasText: "3 міс · за пакет" }).filter({ hasText: "2 200 грн" }).count()) === 1,
+    "Grok personal monthly and three-month package prices were not rendered accurately."
+  );
+
   const initialTheme = await page.evaluate(
     () => document.documentElement.dataset.theme
   );

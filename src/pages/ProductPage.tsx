@@ -137,8 +137,8 @@ export function ProductPage() {
                 {product.pricingOptions.filter((plan) => plan.isActive).map((plan) => (
                   <div className="product-detail-plan" key={plan.id}>
                     <span>{plan.label}</span>
-                    <strong>{formatPrice(plan.price)}</strong>
-                    {plan.compareAt ? <s>{formatPrice(plan.compareAt)}</s> : null}
+                    <strong>{formatPrice(plan)}</strong>
+                    {plan.compareAt ? <s>{formatPrice(plan.compareAt, plan.currency)}</s> : null}
                   </div>
                 ))}
               </div>

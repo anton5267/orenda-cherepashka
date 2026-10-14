@@ -35,6 +35,7 @@ export interface PricingOption {
   id: string;
   label: string;
   price: number;
+  currency: "UAH" | "USD";
   compareAt: number | null;
   sortOrder: number;
   isActive: boolean;
@@ -108,6 +109,7 @@ export interface LeadItem {
   pricingOptionId: string | null;
   labelSnapshot: string;
   unitPriceSnapshot: number;
+  currency: "UAH" | "USD";
   compareAtSnapshot: number | null;
   quantity: number;
 }

@@ -144,14 +144,19 @@ function matchesProductSearch(product: Product, categoryName: string, search: st
 
 function sortProducts(products: Product[], sortKey: CatalogSort) {
   return [...products].sort((left, right) => {
-    const leftPrice = getLowestPlan(left)?.price ?? 0;
-    const rightPrice = getLowestPlan(right)?.price ?? 0;
+    const leftPlan = getLowestPlan(left);
+    const rightPlan = getLowestPlan(right);
+    const leftPrice = leftPlan?.price ?? 0;
+    const rightPrice = rightPlan?.price ?? 0;
+    const currencyOrder = (leftPlan?.currency ?? "UAH") === (rightPlan?.currency ?? "UAH")
+      ? 0
+      : leftPlan?.currency === "USD" ? 1 : -1;
 
     switch (sortKey) {
       case "price-asc":
-        return leftPrice - rightPrice || left.sortOrder - right.sortOrder;
+        return currencyOrder || leftPrice - rightPrice || left.sortOrder - right.sortOrder;
       case "price-desc":
-        return rightPrice - leftPrice || left.sortOrder - right.sortOrder;
+        return currencyOrder || rightPrice - leftPrice || left.sortOrder - right.sortOrder;
       case "order":
         return left.sortOrder - right.sortOrder || left.name.localeCompare(right.name);
       case "popular":
@@ -331,25 +336,25 @@ export function HomePage() {
   const selectedProductParam = searchParams.get("product") ?? "";
   const selectedPlanParam = searchParams.get("plan") ?? "";
   const displaySettings = settings ?? defaultSiteSettings;
-  const totalProducts = products.length || 16;
-  const totalCategories = categories.length || 5;
+  const totalProducts = products.length || 35;
+  const totalCategories = categories.length || 6;
   const totalReviews = reviews.length;
-  const totalHotProducts = products.filter((product) => product.isHot).length || 4;
   const minimalPrice =
     products
       .flatMap((product) => getDisplayPlans(product))
+      .filter((plan) => plan.currency === "UAH")
       .reduce<number | null>((best, plan) => {
         if (best === null || plan.price < best) {
           return plan.price;
         }
 
         return best;
-      }, null) ?? 59;
+      }, null) ?? 65;
 
   const heroFacts = [
     {
-      value: `${totalProducts}+`,
-      label: "сервісів у каталозі"
+      value: `${totalProducts}`,
+      label: "позицій у каталозі"
     },
     {
       value: `${totalCategories}`,
@@ -360,8 +365,8 @@ export function HomePage() {
       label: "стартова ціна"
     },
     {
-      value: `${totalHotProducts}+`,
-      label: "хітів цього тижня"
+      value: "₴ + $",
+      label: "валюти в прайсі"
     }
   ];
 
@@ -1021,7 +1026,7 @@ export function HomePage() {
       const message = [
         "Вітаю! Хочу оформити замовлення:",
         `Сервіс: ${product?.name ?? "не вибрано"}`,
-        `Тариф: ${plan?.label ?? "не вибрано"}${plan ? ` — ${formatPrice(plan.price)}` : ""}`,
+        `Тариф: ${plan?.label ?? "не вибрано"}${plan ? ` — ${formatPrice(plan)}` : ""}`,
         `Ім'я: ${leadValues.name.trim()}`,
         `Мій контакт: ${leadValues.contact.trim()}`,
         leadValues.message.trim() ? `Коментар: ${leadValues.message.trim()}` : ""
@@ -1434,7 +1439,7 @@ export function HomePage() {
                   </p>
                   <span>
                     {totalReviews ? <>{totalReviews}+ відгуків • </> : null}
-                    {totalHotProducts}+ хітів • від{" "}
+                    від{" "}
                     {formatPrice(minimalPrice)}
                   </span>
                 </div>
@@ -1482,7 +1487,7 @@ export function HomePage() {
                               {product.isHot ? <span className="badge hot">Хіт</span> : null}
                               {!bestValuePlan || !getPlanSavings(bestValuePlan) ? null : (
                                 <span className="badge savings">
-                                  Вигода {formatPrice(getPlanSavings(bestValuePlan))}
+                                  Вигода {formatPrice(getPlanSavings(bestValuePlan), bestValuePlan.currency)}
                                 </span>
                               )}
                               <span className="badge outline">
@@ -1506,35 +1511,35 @@ export function HomePage() {
                           <div className="price-box">
                             <div className="price-main">
                               <strong>
-                                {lowestPlan ? formatPrice(lowestPlan.price) : "Тариф скоро"}
+                                {lowestPlan ? formatPrice(lowestPlan) : "Тариф скоро"}
                               </strong>
                               {!lowestPlan?.compareAt ? null : (
-                                <s>{formatPrice(lowestPlan.compareAt)}</s>
+                                <s>{formatPrice(lowestPlan.compareAt, lowestPlan.currency)}</s>
                               )}
                             </div>
                             <div className="price-copy">
                               <span>
                                 {lowestPlan
-                                  ? `від ${lowestPlan.label.toLowerCase()}`
+                                  ? lowestPlan.label.toLowerCase()
                                   : "Очікуємо налаштування тарифу"}
                               </span>
                               {!lowestPlan || !getPlanSavings(lowestPlan) ? null : (
-                                <small>Економія {formatPrice(getPlanSavings(lowestPlan))}</small>
+                                <small>Економія {formatPrice(getPlanSavings(lowestPlan), lowestPlan.currency)}</small>
                               )}
                             </div>
                           </div>
 
                           <div className="product-plans">
-                            {getDisplayPlans(product).slice(0, 3).map((plan) => (
+                            {getDisplayPlans(product).slice(0, 4).map((plan) => (
                               <span
                                 className={`plan-chip ${bestValuePlan?.id === plan.id ? "is-featured" : ""}`}
                                 key={plan.id}
                               >
                                 <strong>{plan.label}</strong>
                                 <span>
-                                  {formatPrice(plan.price)}
+                                  {formatPrice(plan)}
                                   {getPlanSavings(plan) > 0
-                                    ? ` • економія ${formatPrice(getPlanSavings(plan))}`
+                                    ? ` • економія ${formatPrice(getPlanSavings(plan), plan.currency)}`
                                     : ""}
                                 </span>
                               </span>
@@ -1735,10 +1740,10 @@ export function HomePage() {
                           <span>
                             {product.name}
                             {getPlanSavings(lowestPlan) > 0
-                              ? ` • економія ${formatPrice(getPlanSavings(lowestPlan))}`
+                              ? ` • економія ${formatPrice(getPlanSavings(lowestPlan), lowestPlan.currency)}`
                               : ""}
                           </span>
-                          <strong>{formatPrice(lowestPlan.price)}</strong>
+                          <strong>{formatPrice(lowestPlan)}</strong>
                         </button>
                       );
                     })}
@@ -1830,9 +1835,9 @@ export function HomePage() {
                     <option value="">Оберіть тариф</option>
                     {selectedLeadPlans.map((plan) => (
                       <option key={plan.id} value={plan.id}>
-                        {plan.label} — {formatPrice(plan.price)}
+                        {plan.label} — {formatPrice(plan)}
                         {getPlanSavings(plan) > 0
-                          ? ` • економія ${formatPrice(getPlanSavings(plan))}`
+                          ? ` • економія ${formatPrice(getPlanSavings(plan), plan.currency)}`
                           : ""}
                       </option>
                     ))}
@@ -1878,9 +1883,9 @@ export function HomePage() {
                     <small>Можна вибрати сервіс у каталозі або скористатися швидкими кнопками вище.</small>
                   ) : (
                     <div className="lead-summary-meta">
-                      <span>{selectedLeadCategory || "Підписка"} • {formatPrice(selectedLeadPlan.price)}</span>
+                      <span>{selectedLeadCategory || "Підписка"} • {formatPrice(selectedLeadPlan)}</span>
                       {selectedLeadSavings > 0 ? (
-                        <span>Економія {formatPrice(selectedLeadSavings)}</span>
+                        <span>Економія {formatPrice(selectedLeadSavings, selectedLeadPlan.currency)}</span>
                       ) : (
                         <span>Тариф уже готовий до відправки</span>
                       )}
@@ -2093,8 +2098,8 @@ export function HomePage() {
             <span>Готово до заявки</span>
             <strong>{selectedLeadProduct.name} · {selectedLeadPlan.label}</strong>
             <small>
-              {selectedLeadCategory || "Підписка"} • {formatPrice(selectedLeadPlan.price)}
-              {selectedLeadSavings > 0 ? ` • Економія ${formatPrice(selectedLeadSavings)}` : ""}
+              {selectedLeadCategory || "Підписка"} • {formatPrice(selectedLeadPlan)}
+              {selectedLeadSavings > 0 ? ` • Економія ${formatPrice(selectedLeadSavings, selectedLeadPlan.currency)}` : ""}
             </small>
           </div>
           <div className="desktop-selection-actions">
@@ -2116,7 +2121,7 @@ export function HomePage() {
           <div className="mobile-cta-summary">
             <div>
               <strong>{selectedLeadProduct.name} · {selectedLeadPlan.label}</strong>
-              <span>{formatPrice(selectedLeadPlan.price)}</span>
+              <span>{formatPrice(selectedLeadPlan)}</span>
             </div>
             <button className="ghost-button compact" type="button" onClick={clearLeadSelection}>
               Очистити
@@ -2212,7 +2217,7 @@ export function HomePage() {
                           <small>
                             {selectedProduct.name}
                             {getPlanSavings(plan) > 0
-                              ? ` • економія ${formatPrice(getPlanSavings(plan))}`
+                              ? ` • економія ${formatPrice(getPlanSavings(plan), plan.currency)}`
                               : ""}
                           </small>
                           {bestModalPlan?.id !== plan.id ? null : (
@@ -2220,8 +2225,8 @@ export function HomePage() {
                           )}
                         </span>
                         <span>
-                          <strong>{formatPrice(plan.price)}</strong>
-                          {!plan.compareAt ? null : <s>{formatPrice(plan.compareAt)}</s>}
+                          <strong>{formatPrice(plan)}</strong>
+                          {!plan.compareAt ? null : <s>{formatPrice(plan.compareAt, plan.currency)}</s>}
                         </span>
                       </button>
                     ))}
@@ -2237,14 +2242,14 @@ export function HomePage() {
                   <span>
                     Вибраний тариф для швидкого оформлення заявки
                     {getPlanSavings(selectedModalPlan) > 0
-                      ? ` • економія ${formatPrice(getPlanSavings(selectedModalPlan))}`
+                      ? ` • економія ${formatPrice(getPlanSavings(selectedModalPlan), selectedModalPlan.currency)}`
                       : ""}
                   </span>
                 </div>
                 <div className="modal-selection-price">
-                  <strong>{formatPrice(selectedModalPlan.price)}</strong>
+                  <strong>{formatPrice(selectedModalPlan)}</strong>
                   {!selectedModalPlan.compareAt ? null : (
-                    <s>{formatPrice(selectedModalPlan.compareAt)}</s>
+                    <s>{formatPrice(selectedModalPlan.compareAt, selectedModalPlan.currency)}</s>
                   )}
                 </div>
               </div>
