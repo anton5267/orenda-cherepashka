@@ -39,6 +39,7 @@ npm run ci:verify
 This runs:
 - typecheck
 - production build
+- isolated SQLite backup/rotation smoke test
 - local production-style self-QA
 
 ## Admin Password
@@ -91,6 +92,16 @@ npm run docker:self-qa
 ```
 
 ## SQLite Backup / Restore
+
+The server automatically creates one SQLite backup per day in `DATABASE_BACKUP_DIR`
+(by default, a `backups` directory beside the database), keeps the newest 14 daily
+copies, and removes expired copies. On Render, the Blueprint places these files on
+the persistent disk at `/app/data/backups`.
+
+These on-disk copies help recover from accidental changes, but they are not an
+off-site disaster-recovery backup: loss of the persistent disk could remove both
+the live database and its local copies. Periodically copy an encrypted backup to a
+separately managed storage account and test restoration before relying on it.
 
 Create backup from running Docker stack:
 

@@ -25,7 +25,7 @@
     "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
     "dev:client": "vite",
     "dev:server": "tsx watch server/index.ts",
-    "ci:verify": "npm run typecheck && npm run build && npm run self-qa:local",
+    "ci:verify": "npm run typecheck && npm run build && npm run self-qa:backup && npm run self-qa:local",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "build": "npm run build:client && npm run build:server",
     "build:client": "tsc -p tsconfig.json --noEmit && vite build",
@@ -36,6 +36,7 @@
     "self-qa": "npm run self-qa:browser && npm run self-qa:admin",
     "self-qa:browser": "node scripts/self-qa.mjs",
     "self-qa:admin": "node scripts/admin-api-smoke.mjs",
+    "self-qa:backup": "node scripts/database-backup-smoke.mjs",
     "self-qa:local": "node scripts/run-local-self-qa.mjs"
   },
   "dependencies": {

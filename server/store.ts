@@ -149,6 +149,18 @@ const db = new Database(databasePath);
 db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
 
+export const databaseFilePath = databasePath;
+
+export function createDatabaseBackup(destinationPath: string) {
+  return db.backup(destinationPath);
+}
+
+export function closeDatabaseConnection() {
+  if (db.open) {
+    db.close();
+  }
+}
+
 function nowIso() {
   return new Date().toISOString();
 }

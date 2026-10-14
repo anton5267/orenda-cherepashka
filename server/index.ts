@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { clearAdminSession, hasAdminSession, issueAdminSession } from "./auth.js";
+import { startDatabaseBackupScheduler } from "./database-backup.js";
 import { env } from "./env.js";
 import {
   HttpError,
@@ -669,6 +670,7 @@ app.use(
 
 app.listen(env.port, env.host, () => {
   console.log(`API server running at http://${env.host}:${env.port}`);
+  startDatabaseBackupScheduler();
   void configureTelegramWebhook().catch((error) => {
     console.error("Failed to configure Telegram webhook", error);
   });
