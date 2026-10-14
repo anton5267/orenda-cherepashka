@@ -4,6 +4,7 @@ import {
   upsertTelegramNews
 } from "./store.js";
 import type { Lead } from "../shared/models.js";
+import { formatCurrencyAmount } from "../shared/priceFormat.js";
 
 type TelegramChat = {
   id: number;
@@ -150,7 +151,9 @@ export async function notifyLeadInTelegram(lead: Lead) {
   }
 
   const itemSummary = lead.items
-    .map((item) => `${item.labelSnapshot} — ${item.quantity} × ${item.unitPriceSnapshot} грн`)
+    .map((item) =>
+      `${item.labelSnapshot} — ${item.quantity} × ${formatCurrencyAmount(item.unitPriceSnapshot, item.currency)}`
+    )
     .join("\n");
   const text = [
     "Нова заявка з сайту",

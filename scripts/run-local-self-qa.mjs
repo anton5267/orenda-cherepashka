@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
-import { createWriteStream, mkdirSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { createWriteStream, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import process from "node:process";
 import { hashSync } from "bcryptjs";
 
@@ -10,6 +11,7 @@ const baseUrl = `http://${host}:${port}`;
 const logDir = resolve(".local");
 const stdoutLogPath = resolve(logDir, "self-qa-local-server.stdout.log");
 const stderrLogPath = resolve(logDir, "self-qa-local-server.stderr.log");
+const tempDataDir = mkdtempSync(join(tmpdir(), "orenda-self-qa-"));
 
 mkdirSync(logDir, { recursive: true });
 
@@ -124,7 +126,9 @@ async function main() {
       SECURE_COOKIES: "false",
       SESSION_SECRET: process.env.SELF_QA_LOCAL_SESSION_SECRET ?? "self-qa-local-session-secret",
       ADMIN_PASSWORD_HASH:
-        process.env.SELF_QA_LOCAL_ADMIN_PASSWORD_HASH ?? hashSync("admin1234", 10)
+        process.env.SELF_QA_LOCAL_ADMIN_PASSWORD_HASH ?? hashSync("admin1234", 10),
+      DATABASE_PATH: resolve(tempDataDir, "site.db"),
+      DATABASE_BACKUP_DIR: resolve(tempDataDir, "backups")
     }
   });
   forwardStream(serverProcess.stdout, stdoutLog, process.stdout);
@@ -160,6 +164,13 @@ async function main() {
     throw error;
   } finally {
     await cleanup();
+    const safeTempRoot = resolve(tmpdir());
+    if (
+      dirname(resolve(tempDataDir)) === safeTempRoot &&
+      basename(tempDataDir).startsWith("orenda-self-qa-")
+    ) {
+      rmSync(tempDataDir, { recursive: true, force: true });
+    }
   }
 }
 

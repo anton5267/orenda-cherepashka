@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { api, ApiError, isStaticSite, staticSiteBasePath } from "../api";
+import {
+  api,
+  ApiError,
+  getStaticNewsFeedFetchedAt,
+  isStaticSite,
+  staticSiteBasePath
+} from "../api";
 import { defaultSiteSettings } from "../../shared/siteDefaults";
+import { getTelegramPromotionExpiry } from "../../shared/newsDates";
 import type {
   Category,
   CreateLeadInput,
@@ -291,6 +298,7 @@ export function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [faqs, setFaqs] = useState<FaqItem[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
+  const [newsFeedFetchedAt, setNewsFeedFetchedAt] = useState<string | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -339,6 +347,17 @@ export function HomePage() {
   const totalProducts = products.length || 35;
   const totalCategories = categories.length || 6;
   const totalReviews = reviews.length;
+  const latestTelegramPost = news
+    .filter((item) => item.sourceType === "telegram" && item.publishedAt)
+    .sort((left, right) => Date.parse(right.publishedAt!) - Date.parse(left.publishedAt!))[0];
+  const latestPostIsStale = Boolean(
+    latestTelegramPost?.publishedAt &&
+      Date.now() - Date.parse(latestTelegramPost.publishedAt) > 14 * 24 * 60 * 60 * 1000
+  );
+  const newsFeedCheckIsStale = Boolean(
+    newsFeedFetchedAt && Date.now() - Date.parse(newsFeedFetchedAt) > 2 * 60 * 60 * 1000
+  );
+  const latestPostDateLabel = latestTelegramPost?.dateLabel?.replace(/[.]+$/, "");
   const minimalPrice =
     products
       .flatMap((product) => getDisplayPlans(product))
@@ -497,6 +516,7 @@ export function HomePage() {
       setProducts(loadedProducts);
       setFaqs(loadedFaqs);
       setNews(loadedNews);
+      setNewsFeedFetchedAt(isStaticSite ? getStaticNewsFeedFetchedAt() : null);
       setReviews(loadedReviews);
     } catch {
       // Keep current public state if a background refresh fails.
@@ -533,6 +553,7 @@ export function HomePage() {
       setProducts(loadedProducts);
       setFaqs(loadedFaqs);
       setNews(loadedNews);
+      setNewsFeedFetchedAt(isStaticSite ? getStaticNewsFeedFetchedAt() : null);
       setReviews(loadedReviews);
     } catch (caughtError) {
       if (!isMountedRef.current) {
@@ -1642,7 +1663,28 @@ export function HomePage() {
             <Reveal className="section-head">
               <span className="section-kicker">Оновлення</span>
               <h2>Останні новини</h2>
-              <p>Свіжі публікації з каналу. Стрічка автоматично оновлюється приблизно раз на 30 хвилин.</p>
+              <p>Публікації з каналу. Автоматична перевірка стрічки — приблизно раз на 30 хвилин.</p>
+              {isStaticSite && (
+                <p
+                  className={`news-feed-status${newsFeedCheckIsStale || latestPostIsStale || !newsFeedFetchedAt ? " is-warning" : ""}`}
+                  role="status"
+                >
+                  {newsFeedFetchedAt
+                    ? `Остання автоматична перевірка: ${new Intl.DateTimeFormat("uk-UA", {
+                        dateStyle: "medium",
+                        timeStyle: "short"
+                      }).format(new Date(newsFeedFetchedAt))}.`
+                    : "Не вдалося підтвердити час автоматичного оновлення стрічки."}
+                  {latestPostDateLabel
+                    ? ` Найновіший допис у каналі: ${latestPostDateLabel}.`
+                    : ""}
+                  {newsFeedCheckIsStale
+                    ? " Автооновлення затримується — перевірте канал напряму."
+                    : latestPostIsStale
+                      ? " Новіших дописів понад 14 днів — актуальні умови перевірте в каналі."
+                      : ""}
+                </p>
+              )}
               <a
                 className="news-channel-link"
                 href={displaySettings.telegramNewsChannelUrl}
@@ -1675,6 +1717,21 @@ export function HomePage() {
                       <div className="news-mark">📢</div>
                       <div className="news-date">{item.dateLabel}</div>
                     </div>
+                    {(() => {
+                      const expiry = getTelegramPromotionExpiry(item.title, item.publishedAt);
+                      if (!expiry) return null;
+                      const expired = expiry.getTime() < Date.now();
+                      const expiryLabel = new Intl.DateTimeFormat("uk-UA", {
+                        day: "numeric",
+                        month: "long"
+                      }).format(expiry);
+                      return (
+                        <span className={`news-expiry${expired ? " is-expired" : ""}`}>
+                          {expired ? "Архівна акція · завершилась " : "Акція до "}
+                          {expiryLabel}
+                        </span>
+                      );
+                    })()}
                     <h3>{item.title}</h3>
                     <p>{item.content}</p>
                     <div className="news-card-footer">

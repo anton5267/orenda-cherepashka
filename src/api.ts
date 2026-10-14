@@ -56,6 +56,11 @@ const defaultGetTimeoutMs = 10000;
 const defaultMutationTimeoutMs = 15000;
 export const staticSiteBasePath = "/orenda-cherepashka";
 export const isStaticSite = import.meta.env.VITE_STATIC_SITE === "true";
+let staticNewsFeedFetchedAt: string | null = null;
+
+export function getStaticNewsFeedFetchedAt() {
+  return staticNewsFeedFetchedAt;
+}
 
 function staticPublicRequest<T>(path: string, method: string): T {
   if (method === "GET") {
@@ -162,12 +167,20 @@ export const api = {
           cache: "no-store"
         });
         if (response.ok) {
-          const feed = (await response.json()) as { items?: NewsItem[] };
+          const feed = (await response.json()) as {
+            fetchedAt?: string;
+            items?: NewsItem[];
+          };
+          staticNewsFeedFetchedAt =
+            typeof feed.fetchedAt === "string" && Number.isFinite(Date.parse(feed.fetchedAt))
+              ? feed.fetchedAt
+              : null;
           if (feed.items?.length) return feed.items;
         }
       } catch {
         // Fall back to the bundled news if the generated channel feed is unavailable.
       }
+      staticNewsFeedFetchedAt = null;
     }
     return apiRequest<NewsItem[]>(admin ? "/api/admin/news" : "/api/news");
   },

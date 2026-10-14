@@ -576,23 +576,23 @@ if (process.env.NODE_ENV === "production") {
     try {
       const product = getProductBySlug(getRouteParam(request, "slug"));
       const html = readFileSync(resolve(distDir, "index.html"), "utf8");
-      const lowestPlan = product.pricingOptions
+      const activePlans = product.pricingOptions
         .filter((plan) => plan.isActive)
-        .sort((left, right) => left.price - right.price)[0];
+        .sort((left, right) => left.sortOrder - right.sortOrder);
       const productSchema = {
         "@context": "https://schema.org",
         "@type": "Product",
         name: product.name,
         description: product.summary,
-        image: product.logo,
-        offers: lowestPlan
-          ? {
+        ...(product.logo ? { image: product.logo } : {}),
+        offers: activePlans.length
+          ? activePlans.map((plan) => ({
               "@type": "Offer",
-              priceCurrency: "UAH",
-              price: lowestPlan.price,
-              availability: "https://schema.org/InStock",
+              name: plan.label,
+              priceCurrency: plan.currency,
+              price: plan.price,
               url: `${env.publicSiteUrl.replace(/\/$/, "")}/p/${product.slug}`
-            }
+            }))
           : undefined
       };
       const baseUrl = env.publicSiteUrl.replace(/\/$/, "");

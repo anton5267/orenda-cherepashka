@@ -83,6 +83,31 @@ async function saveScreenshot(page, name) {
   return path;
 }
 
+async function checkProductStructuredData() {
+  const { data: products } = await requestJson("/api/products");
+  const gmailProduct = products.find((product) => product.slug === "gmail-mailbox");
+  assert(gmailProduct, "Gmail product was not available for structured-data checks.");
+  assert(gmailProduct.pricingOptions.length === 2, "Gmail catalog data did not contain both plans.");
+
+  const response = await fetch(`${baseUrl}/p/${gmailProduct.slug}`, {
+    headers: { "ngrok-skip-browser-warning": "true" }
+  });
+  const html = await response.text();
+  assert(response.ok, `Gmail product route returned ${response.status}.`);
+
+  const schemas = [...html.matchAll(
+    /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g
+  )].map((match) => JSON.parse(match[1]));
+  const schema = schemas.find((item) => item["@type"] === "Product");
+  assert(schema, "Product page did not include Product JSON-LD structured data.");
+  assert(Array.isArray(schema.offers) && schema.offers.length === 2,
+    `Product JSON-LD did not expose both active Gmail price options: ${JSON.stringify(schema.offers)}`);
+  assert(schema.offers.every((offer) => offer.priceCurrency === "USD"),
+    "USD product offers were published with the wrong currency.");
+  assert(schema.offers.every((offer) => !("availability" in offer)),
+    "Product JSON-LD claimed stock availability without an inventory source.");
+}
+
 async function revealSections(page) {
   const targets = ["#catalog", "#faq", "#news", "#lead-form", "#reviews", "footer"];
 
@@ -1466,6 +1491,7 @@ async function runAdminLeadStatusRecoveryRegression(browser) {
 }
 
 async function runPublicChecks(browser) {
+  await checkProductStructuredData();
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1200 },
     colorScheme: "light",
