@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 import { clearAdminSession, hasAdminSession, issueAdminSession } from "./auth.js";
 import { startDatabaseBackupScheduler } from "./database-backup.js";
 import { env } from "./env.js";
+import { pruneExpiredRateLimitEntries } from "./rateLimitEntries.js";
 import {
   HttpError,
   bulkUpdateFaqs,
@@ -133,6 +134,12 @@ app.use(express.json({ limit: "1mb" }));
 type RateLimitEntry = { count: number; resetAt: number };
 const rateLimitEntries = new Map<string, RateLimitEntry>();
 const loginFailureEntries = new Map<string, RateLimitEntry>();
+const rateLimitCleanupTimer = setInterval(() => {
+  const now = Date.now();
+  pruneExpiredRateLimitEntries(rateLimitEntries, now);
+  pruneExpiredRateLimitEntries(loginFailureEntries, now);
+}, 60 * 1000);
+rateLimitCleanupTimer.unref();
 
 function getClientKey(request: express.Request) {
   return request.ip || "unknown";

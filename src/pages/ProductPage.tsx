@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { api, isStaticSite, staticSiteBasePath } from "../api";
+import { ApiError, api, isStaticSite, staticSiteBasePath } from "../api";
 import { preserveUtmAttribution, readUtmAttribution } from "../attribution";
 import type { Product } from "../types";
 import {
@@ -38,17 +38,39 @@ export function ProductPage() {
   const { slug = "" } = useParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [retryAttempt, setRetryAttempt] = useState(0);
   const product = useMemo(
     () => products.find((item) => item.slug === slug) ?? null,
     [products, slug]
   );
 
   useEffect(() => {
+    let isCurrent = true;
+    setLoading(true);
+    setLoadError("");
     void api
       .getProducts()
-      .then(setProducts)
-      .finally(() => setLoading(false));
-  }, []);
+      .then((loadedProducts) => {
+        if (isCurrent) setProducts(loadedProducts);
+      })
+      .catch((caughtError: unknown) => {
+        if (!isCurrent) return;
+        setProducts([]);
+        setLoadError(
+          caughtError instanceof ApiError
+            ? caughtError.message
+            : "Не вдалося завантажити товар. Перевір з'єднання і спробуй ще раз."
+        );
+      })
+      .finally(() => {
+        if (isCurrent) setLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [retryAttempt]);
 
   useEffect(() => {
     if (!product) {
@@ -86,15 +108,33 @@ export function ProductPage() {
     return (
       <PageShell>
         <main className="shell product-page-empty">
-          <EmptyState
-            title="Товар не знайдено"
-            description="Можливо, сервіс було прибрано з каталогу або посилання застаріло."
-            action={
-              <a className="primary-button compact" href={homeHref}>
-                Повернутися до каталогу
-              </a>
-            }
-          />
+          {loadError ? (
+            <div role="alert">
+              <EmptyState
+                title="Не вдалося завантажити товар"
+                description={loadError}
+                action={
+                  <button
+                    className="primary-button compact"
+                    type="button"
+                    onClick={() => setRetryAttempt((attempt) => attempt + 1)}
+                  >
+                    Повторити завантаження
+                  </button>
+                }
+              />
+            </div>
+          ) : (
+            <EmptyState
+              title="Товар не знайдено"
+              description="Можливо, сервіс було прибрано з каталогу або посилання застаріло."
+              action={
+                <a className="primary-button compact" href={homeHref}>
+                  Повернутися до каталогу
+                </a>
+              }
+            />
+          )}
         </main>
       </PageShell>
     );

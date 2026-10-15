@@ -304,6 +304,7 @@ async function main() {
       DATABASE_BACKUP_DIR: resolve(tempDataDir, "backups"),
       PUBLIC_SITE_URL: baseUrl,
       PUBLIC_API_ALLOWED_ORIGINS: "https://anton5267.github.io",
+      TELEGRAM_BOT_TOKEN: "",
       TELEGRAM_WEBHOOK_SECRET: "self-qa-telegram-webhook-secret",
       TELEGRAM_CHANNEL_ID: "@arenda_cherepashka",
       TELEGRAM_AUTO_PUBLISH: "true"

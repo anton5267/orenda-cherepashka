@@ -1,5 +1,6 @@
 import { hashSync } from "bcryptjs";
 import dotenv from "dotenv";
+import { resolveTelegramWebhookBaseUrl } from "./telegramWebhookConfig.js";
 
 dotenv.config();
 
@@ -60,6 +61,10 @@ export const env = {
     process.env.PUBLIC_SITE_URL?.trim() ||
     process.env.RENDER_EXTERNAL_URL?.trim() ||
     "http://127.0.0.1:4174",
+  telegramWebhookBaseUrl: resolveTelegramWebhookBaseUrl(
+    process.env.TELEGRAM_WEBHOOK_BASE_URL,
+    process.env.RENDER_EXTERNAL_URL
+  ),
   publicApiAllowedOrigins: (process.env.PUBLIC_API_ALLOWED_ORIGINS ?? "https://anton5267.github.io")
     .split(",")
     .map((origin) => origin.trim())

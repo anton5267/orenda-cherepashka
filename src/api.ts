@@ -46,7 +46,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     throw new ApiError(
       (data as { message?: string } | null)?.message ??
-        (text && !isJson ? text.slice(0, 180) : "Помилка запиту."),
+        (isJson ? "Помилка запиту." : "Сервер тимчасово недоступний. Спробуй ще раз."),
       response.status
     );
   }

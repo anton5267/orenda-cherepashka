@@ -1536,6 +1536,7 @@ async function runAdminLeadStatusRecoveryRegression(browser) {
 
 async function runPublicChecks(browser) {
   await checkProductStructuredData();
+  await runProductPageApiFailureRecovery(browser);
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1200 },
     colorScheme: "light",
@@ -1793,6 +1794,48 @@ async function runPublicChecks(browser) {
     mobileShot,
     mobileLeadShot
   };
+}
+
+async function runProductPageApiFailureRecovery(browser) {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    extraHTTPHeaders: { "ngrok-skip-browser-warning": "true" }
+  });
+  const page = await context.newPage();
+  const pageErrors = [];
+  let injectedFailure = false;
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.route("**/api/products", async (route, request) => {
+    if (request.method() === "GET" && !injectedFailure) {
+      injectedFailure = true;
+      await route.fulfill({
+        status: 503,
+        contentType: "text/html",
+        body: "<html><title>Service unavailable</title></html>"
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  try {
+    await page.goto(`${baseUrl}/p/chatgpt-pro-shared`, { waitUntil: "networkidle" });
+    const errorState = page.getByRole("alert");
+    await errorState.getByText("Не вдалося завантажити товар").waitFor();
+    assert(
+      /Сервер тимчасово недоступний/.test(await errorState.innerText()),
+      "A non-JSON API error should become a safe, understandable message."
+    );
+    assert(
+      (await page.getByRole("button", { name: "Повторити завантаження" }).count()) === 1,
+      "Product API error state should offer a retry action."
+    );
+    await page.getByRole("button", { name: "Повторити завантаження" }).click();
+    await page.getByRole("heading", { name: /ChatGPT Pro \[спільний/ }).waitFor();
+    assert(pageErrors.length === 0, "Product API failure must not create an unhandled browser rejection.");
+  } finally {
+    await context.close();
+  }
 }
 
 async function runAdminChecks(browser) {

@@ -5,6 +5,10 @@ import {
 } from "./store.js";
 import type { Lead, TelegramWebhookUpdate } from "../shared/models.js";
 import { formatCurrencyAmount } from "../shared/priceFormat.js";
+import {
+  buildTelegramWebhookPayload,
+  hasTelegramWebhookCredentials
+} from "./telegramWebhookConfig.js";
 
 function cleanTelegramText(value: string) {
   return value
@@ -184,13 +188,12 @@ async function telegramRequest(method: string, body: Record<string, unknown>) {
 }
 
 export async function configureTelegramWebhook() {
-  if (!env.telegramBotToken || !env.telegramWebhookSecret) {
+  if (!hasTelegramWebhookCredentials(env.telegramBotToken, env.telegramWebhookSecret)) {
     return;
   }
 
-  await telegramRequest("setWebhook", {
-    url: `${env.publicSiteUrl.replace(/\/$/, "")}/api/telegram/webhook`,
-    secret_token: env.telegramWebhookSecret,
-    allowed_updates: ["channel_post", "edited_channel_post"]
-  });
+  await telegramRequest(
+    "setWebhook",
+    buildTelegramWebhookPayload(env.telegramWebhookBaseUrl, env.telegramWebhookSecret)
+  );
 }
