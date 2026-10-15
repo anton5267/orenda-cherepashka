@@ -42,6 +42,7 @@ import {
 import { useToast } from "../toasts";
 
 const heroHighlight = "топові сервіси";
+const catalogBatchSize = 12;
 
 const sectionLinks = [
   { id: "catalog", label: "Каталог" },
@@ -325,6 +326,7 @@ export function HomePage() {
   const [error, setError] = useState("");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [catalogVisibleLimit, setCatalogVisibleLimit] = useState(catalogBatchSize);
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -367,6 +369,11 @@ export function HomePage() {
   const selectedProductParam = searchParams.get("product") ?? "";
   const selectedPlanParam = searchParams.get("plan") ?? "";
   const displaySettings = settings ?? defaultSiteSettings;
+
+  useEffect(() => {
+    setCatalogVisibleLimit(catalogBatchSize);
+  }, [activeCategory, searchTerm, sortKey]);
+
   const totalProducts = products.length || 35;
   const totalCategories = categories.length || 6;
   const totalReviews = reviews.length;
@@ -489,6 +496,7 @@ export function HomePage() {
     return matchesProductSearch(product, categoryName, searchTerm);
   });
   visibleProducts = sortProducts(visibleProducts, sortKey);
+  const displayedProducts = visibleProducts.slice(0, catalogVisibleLimit);
 
   const refreshCatalogData = useCallback(async () => {
     const requestId = ++catalogRefreshTokenRef.current;
@@ -1425,7 +1433,7 @@ export function HomePage() {
             <Reveal className="hero-copy">
               <div className="eyebrow">
                 <span className="eyebrow-icon">✦</span>
-                <span>Найкращі ціни в Україні</span>
+                <span>Популярні цифрові підписки</span>
               </div>
               <h1 className="hero-title">
                 {renderHeroTitle(
@@ -1624,9 +1632,9 @@ export function HomePage() {
                 )}
 
                 <div className="catalog-meta">
-                  <p>
-                    Знайдено <strong>{visibleProducts.length}</strong> із{" "}
-                    <strong>{products.length}</strong>
+                  <p role="status" aria-live="polite" aria-atomic="true">
+                    Показано <strong>{displayedProducts.length}</strong> із{" "}
+                    <strong>{visibleProducts.length}</strong> позицій
                   </p>
                   <span>
                     {totalReviews ? <>{totalReviews}+ відгуків • </> : null}
@@ -1659,7 +1667,7 @@ export function HomePage() {
                   />
                 ) : (
                   <div className="products-grid">
-                    {visibleProducts.map((product) => {
+                    {displayedProducts.map((product) => {
                       const lowestPlan = getLowestPlan(product);
                       const bestValuePlan = getBestValuePlan(product);
                       const category = categories.find(
@@ -1762,6 +1770,23 @@ export function HomePage() {
                         </Reveal>
                       );
                     })}
+                  </div>
+                )}
+
+                {displayedProducts.length >= visibleProducts.length ? null : (
+                  <div className="catalog-load-more">
+                    <button
+                      className="ghost-button compact"
+                      type="button"
+                      onClick={() =>
+                        setCatalogVisibleLimit((current) =>
+                          Math.min(current + catalogBatchSize, visibleProducts.length)
+                        )
+                      }
+                    >
+                      Показати ще{" "}
+                      {Math.min(catalogBatchSize, visibleProducts.length - displayedProducts.length)} позицій
+                    </button>
                   </div>
                 )}
               </>
@@ -2379,6 +2404,16 @@ export function HomePage() {
         >
           Telegram
         </a>
+        {!showScrollTop ? null : (
+          <button
+            className="ghost-button compact mobile-scroll-top"
+            type="button"
+            aria-label="Повернутися нагору"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          >
+            <span aria-hidden="true">↑</span>
+          </button>
+        )}
       </div>
 
       {!showScrollTop ? null : (

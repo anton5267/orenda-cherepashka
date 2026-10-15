@@ -5925,3 +5925,50 @@ p {
   color: var(--muted);
   text-align: center;
 }
+
+.catalog-load-more {
+  display: grid;
+  justify-items: center;
+  margin: 26px auto 0;
+}
+
+.catalog-load-more .ghost-button {
+  width: min(100%, 22rem);
+  min-height: 48px;
+  justify-content: center;
+}
+
+.mobile-cta .mobile-scroll-top {
+  flex: 0 0 48px;
+  width: 48px;
+  min-height: 48px;
+  justify-content: center;
+  padding: 0;
+  border-radius: 16px;
+}
+
+@media (max-width: 760px) {
+  .scroll-top-button {
+    display: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .mobile-cta > a {
+    min-width: 0;
+    padding-inline: 8px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  .mobile-cta .mobile-scroll-top {
+    flex-basis: 44px;
+    width: 44px;
+  }
+}
+
+@media (max-width: 640px) {
+  .catalog-load-more {
+    margin-top: 20px;
+  }
+}

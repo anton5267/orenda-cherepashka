@@ -1560,10 +1560,32 @@ async function runPublicChecks(browser) {
   );
 
   const initialCatalogCards = page.locator(".product-card");
+  await initialCatalogCards.first().waitFor();
+  assert(
+    (await initialCatalogCards.count()) === 12,
+    "Public catalog should render the first 12 items before progressive loading."
+  );
+  assert(
+    (await page.locator(".catalog-meta p").innerText()).includes("Показано 12 із 35"),
+    "Catalog status did not report the first visible batch."
+  );
+  await page.getByRole("button", { name: "Показати ще 12 позицій" }).click();
+  assert((await initialCatalogCards.count()) === 24,
+    "Public catalog load-more did not reveal the second product batch.");
+  const catalogSearch = page.getByRole("searchbox", { name: "Пошук" });
+  await catalogSearch.fill("Gmail");
+  await initialCatalogCards.filter({ hasText: "Gmail пошта" }).waitFor();
+  assert((await initialCatalogCards.count()) === 1,
+    "Catalog search could not find a product outside its initial rendered batch.");
+  await catalogSearch.fill("");
+  await page.waitForFunction(() => document.querySelectorAll(".product-card").length === 12);
+  while ((await initialCatalogCards.count()) < 35) {
+    await page.getByRole("button", { name: /Показати ще/ }).click();
+  }
   await initialCatalogCards.filter({ hasText: "ELEVENLABS 131K credits" }).waitFor();
   assert(
     (await initialCatalogCards.count()) === 35,
-    "Public catalog did not render all 35 items from the seller's price list."
+    "Public catalog did not allow visitors to reveal all 35 items from the seller's price list."
   );
   const gmailCard = initialCatalogCards.filter({ hasText: "Gmail пошта" }).first();
   assert(

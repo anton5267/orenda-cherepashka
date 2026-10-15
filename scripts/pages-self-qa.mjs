@@ -280,7 +280,29 @@ try {
   }
 
   await page.locator(".product-card").first().waitFor();
-  assert.equal(await page.locator(".product-card").count(), 35, "Pages catalog did not render all products.");
+  assert.equal(await page.locator(".product-card").count(), 12,
+    "Pages catalog should progressively render an initial batch of 12 products.");
+  assert.match(await page.locator(".catalog-meta p").innerText(), /Показано 12 із 35/,
+    "Catalog result status should announce how many products are currently shown.");
+  await page.getByRole("button", { name: "Показати ще 12 позицій" }).click();
+  assert.equal(await page.locator(".product-card").count(), 24,
+    "The catalog load-more action did not reveal the next batch.");
+  assert.match(await page.locator(".catalog-meta p").innerText(), /Показано 24 із 35/);
+  const catalogSearch = page.getByRole("searchbox", { name: "Пошук" });
+  await catalogSearch.fill("Gmail");
+  await page.locator(".product-card").filter({ hasText: "Gmail пошта" }).waitFor();
+  assert.equal(await page.locator(".product-card").count(), 1,
+    "Catalog search did not reveal a match outside the initial batch.");
+  assert.match(await page.locator(".catalog-meta p").innerText(), /Показано 1 із 1/);
+  await catalogSearch.fill("");
+  await page.waitForFunction(() => document.querySelectorAll(".product-card").length === 12);
+  while ((await page.locator(".product-card").count()) < 35) {
+    await page.getByRole("button", { name: /Показати ще/ }).click();
+  }
+  assert.equal(await page.locator(".product-card").count(), 35,
+    "The catalog did not allow visitors to reveal every product.");
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.locator(".product-card").first().waitFor();
   assert(
     initialModuleRequests.every((url) => !/\/(?:AdminPages|AdminLayout|AdminLoginPage|ProductPage|LegalPage)-[^/]+\.js(?:\?|$)/.test(url)),
     `The home page eagerly requested a route-only JavaScript chunk: ${initialModuleRequests.join(", ")}`
@@ -336,6 +358,9 @@ try {
   );
   await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
   await page.locator("body").click({ position: { x: 4, y: 4 } });
+  while ((await page.locator(".product-card").count()) < 35) {
+    await page.getByRole("button", { name: /Показати ще/ }).click();
+  }
   assert.deepEqual(externalFontRequests, [], "The page should not depend on third-party font downloads.");
   const gmailCard = page.locator(".product-card").filter({ hasText: "Gmail пошта" }).first();
   assert.equal(await gmailCard.locator(".plan-chip").filter({ hasText: "$1.90" }).count(), 1);
@@ -398,6 +423,29 @@ try {
     await installPagesApiMock(touchPage, new URL(baseUrl).origin);
     await touchPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
     await touchPage.locator(".product-card").first().waitFor();
+    await touchPage.locator(".catalog-meta").scrollIntoViewIfNeeded();
+    await touchPage.waitForSelector(".mobile-cta .mobile-scroll-top");
+    const mobileScrollControls = await touchPage.evaluate(() => {
+      const meta = document.querySelector(".catalog-meta").getBoundingClientRect();
+      const backToTop = document.querySelector(".mobile-cta .mobile-scroll-top").getBoundingClientRect();
+      return {
+        standaloneButtonDisplay: getComputedStyle(document.querySelector(".scroll-top-button")).display,
+        inlineButtonWidth: backToTop.width,
+        inlineButtonHeight: backToTop.height,
+        overlapsMeta: Math.min(meta.right, backToTop.right) > Math.max(meta.left, backToTop.left) &&
+          Math.min(meta.bottom, backToTop.bottom) > Math.max(meta.top, backToTop.top)
+      };
+    });
+    assert.equal(mobileScrollControls.standaloneButtonDisplay, "none",
+      "The floating mobile scroll button should not overlap catalog content.");
+    assert(mobileScrollControls.inlineButtonWidth >= 44 && mobileScrollControls.inlineButtonHeight >= 44,
+      "The mobile scroll action must remain a comfortable touch target inside the fixed action bar.");
+    assert.equal(mobileScrollControls.overlapsMeta, false,
+      "Mobile scroll-to-top action overlaps catalog status or price.");
+    const scrollYBeforeBackToTop = await touchPage.evaluate(() => window.scrollY);
+    await touchPage.locator(".mobile-cta .mobile-scroll-top").click();
+    await touchPage.waitForFunction(() => window.scrollY === 0, { timeout: 5000 });
+    assert(scrollYBeforeBackToTop > 0, "Mobile scroll-to-top action was not tested from a scrolled position.");
     const lowPowerMobileStyles = await touchPage.evaluate(() => {
       const skeleton = document.createElement("div");
       skeleton.className = "loading-block";
