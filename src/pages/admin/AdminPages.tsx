@@ -2364,7 +2364,7 @@ export function AdminProductsPage() {
                     className={`admin-list-item ${selectedIds.includes(item.id) ? "is-selected" : ""}`}
                     key={item.id}
                   >
-                    <div className="admin-selection-cell">
+                    <label className="admin-selection-cell">
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(item.id)}
@@ -2373,7 +2373,7 @@ export function AdminProductsPage() {
                         }
                         aria-label={`Виділити ${item.name}`}
                       />
-                    </div>
+                    </label>
                     <div className="admin-list-body">
                       <div className="admin-list-head">
                         <div className="admin-entity">
@@ -3026,7 +3026,7 @@ export function AdminFaqsPage() {
                   className={`admin-list-item ${selectedIds.includes(item.id) ? "is-selected" : ""}`}
                   key={item.id}
                 >
-                  <div className="admin-selection-cell">
+                  <label className="admin-selection-cell">
                     <input
                       type="checkbox"
                       checked={selectedIds.includes(item.id)}
@@ -3035,7 +3035,7 @@ export function AdminFaqsPage() {
                       }
                       aria-label={`Виділити ${item.question}`}
                     />
-                  </div>
+                  </label>
                   <div className="admin-list-body">
                     <div className="admin-list-head">
                       <div>
@@ -3672,7 +3672,7 @@ export function AdminNewsPage() {
                   className={`admin-list-item ${selectedIds.includes(item.id) ? "is-selected" : ""}`}
                   key={item.id}
                 >
-                  <div className="admin-selection-cell">
+                  <label className="admin-selection-cell">
                     <input
                       type="checkbox"
                       checked={selectedIds.includes(item.id)}
@@ -3681,7 +3681,7 @@ export function AdminNewsPage() {
                       }
                       aria-label={`Виділити ${item.title}`}
                     />
-                  </div>
+                  </label>
                   <div className="admin-list-body">
                     <div className="admin-list-head">
                       <div>
@@ -4418,7 +4418,7 @@ export function AdminReviewsPage() {
                   className={`admin-list-item ${selectedIds.includes(item.id) ? "is-selected" : ""}`}
                   key={item.id}
                 >
-                  <div className="admin-selection-cell">
+                  <label className="admin-selection-cell">
                     <input
                       type="checkbox"
                       checked={selectedIds.includes(item.id)}
@@ -4427,7 +4427,7 @@ export function AdminReviewsPage() {
                       }
                       aria-label={`Виділити відгук ${item.name}`}
                     />
-                  </div>
+                  </label>
                   <div className="admin-list-body">
                     <div className="admin-list-head">
                       <div>
@@ -4859,7 +4859,7 @@ export function AdminLeadsPage() {
                   className={`admin-list-item ${selectedIds.includes(item.id) ? "is-selected" : ""}`}
                   key={item.id}
                 >
-                  <div className="admin-selection-cell">
+                  <label className="admin-selection-cell">
                     <input
                       type="checkbox"
                       checked={selectedIds.includes(item.id)}
@@ -4868,7 +4868,7 @@ export function AdminLeadsPage() {
                       }
                       aria-label={`Виділити заявку ${item.name}`}
                     />
-                  </div>
+                  </label>
                   <div className="admin-list-body">
                     <div className="admin-list-head">
                       <div>

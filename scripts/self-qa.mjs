@@ -1185,9 +1185,38 @@ async function runAdminMobileFaqBulkRegression(browser) {
     const faqCards = adminPage.locator(".admin-list-item").filter({ hasText: questionPrefix });
     await faqCards.first().waitFor({ timeout: 15000 });
 
+    const firstFaqSelection = faqCards.first().locator(".admin-selection-cell");
+    const selectionTarget = await firstFaqSelection.boundingBox();
+    assert(selectionTarget && selectionTarget.width >= 44 && selectionTarget.height >= 44,
+      "Mobile list selection target is smaller than a comfortable touch area.");
+    const firstFaqCheckbox = firstFaqSelection.locator('input[type="checkbox"]');
+    const initiallySelected = await firstFaqCheckbox.isChecked();
+    await firstFaqSelection.click();
+    assert((await firstFaqCheckbox.isChecked()) === !initiallySelected,
+      "Tapping the enlarged mobile checkbox label did not change selection.");
+    await firstFaqSelection.click();
+    assert((await firstFaqCheckbox.isChecked()) === initiallySelected,
+      "Tapping the mobile checkbox label again did not restore selection.");
+
     await adminPage.getByLabel("Виділити всі видимі").check();
     const floatingToolbar = adminPage.locator(".bulk-toolbar-floating");
     await floatingToolbar.waitFor();
+    await adminPage.evaluate(() => window.scrollTo({
+      top: document.documentElement.scrollHeight,
+      behavior: "instant"
+    }));
+    const bulkClearance = await adminPage.evaluate((prefix) => {
+      const toolbar = document.querySelector(".bulk-toolbar-floating");
+      const cards = Array.from(document.querySelectorAll(".admin-list-item"))
+        .filter((card) => card.textContent?.includes(prefix));
+      if (!toolbar || !cards.length) return null;
+      return {
+        cardBottom: cards[cards.length - 1].getBoundingClientRect().bottom,
+        toolbarTop: toolbar.getBoundingClientRect().top
+      };
+    }, questionPrefix);
+    assert(bulkClearance && bulkClearance.cardBottom <= bulkClearance.toolbarTop - 8,
+      `The floating mobile bulk toolbar obscures the last selected record: ${JSON.stringify(bulkClearance)}.`);
 
     let faqBulkFailureInjected = false;
     await adminPage.route("**/api/admin/faqs/bulk", async (route, request) => {

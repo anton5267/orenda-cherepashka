@@ -297,6 +297,10 @@ export function HomePage() {
   const { pushToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const leadRef = useRef<HTMLFormElement | null>(null);
+  const productModalRef = useRef<HTMLDivElement | null>(null);
+  const productModalCloseRef = useRef<HTMLButtonElement | null>(null);
+  const productModalTriggerRef = useRef<HTMLElement | null>(null);
+  const productModalWasOpenRef = useRef(false);
   const menuToggleRef = useRef<HTMLButtonElement | null>(null);
   const headerApplyRef = useRef<HTMLAnchorElement | null>(null);
   const mobileMenuPanelRef = useRef<HTMLDivElement | null>(null);
@@ -861,19 +865,59 @@ export function HomePage() {
   ]);
 
   useEffect(() => {
-    if (!selectedProductId) {
+    if (!selectedProduct) {
+      if (productModalWasOpenRef.current) {
+        productModalWasOpenRef.current = false;
+        window.requestAnimationFrame(() => {
+          const trigger = productModalTriggerRef.current;
+          if (trigger?.isConnected) {
+            trigger.focus({ preventScroll: true });
+          }
+        });
+      }
       return;
     }
 
-    const handleEscape = (event: KeyboardEvent) => {
+    productModalWasOpenRef.current = true;
+    const panel = productModalRef.current;
+    const getFocusable = () =>
+      Array.from(
+        panel?.querySelectorAll<HTMLElement>(
+          'a[href]:not([aria-disabled="true"]), button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ) ?? []
+      );
+
+    window.requestAnimationFrame(() => productModalCloseRef.current?.focus({ preventScroll: true }));
+
+    const handleKeydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setSelectedProductId(null);
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const focusable = getFocusable();
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const focusIsOutsidePanel = !panel?.contains(document.activeElement);
+
+      if (!first || !last) {
+        event.preventDefault();
+      } else if (event.shiftKey && (document.activeElement === first || focusIsOutsidePanel)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || focusIsOutsidePanel)) {
+        event.preventDefault();
+        first.focus();
       }
     };
 
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [selectedProductId]);
+    window.addEventListener("keydown", handleKeydown);
+    return () => window.removeEventListener("keydown", handleKeydown);
+  }, [selectedProduct]);
 
   useEffect(() => {
     const sections = [
@@ -941,8 +985,23 @@ export function HomePage() {
   };
 
   const openProductModal = (product: Product) => {
+    productModalTriggerRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
     setSelectedProductId(product.id);
     setSelectedPlanId(getLowestPlan(product)?.id ?? "");
+  };
+
+  const focusFirstInvalidLeadField = () => {
+    window.requestAnimationFrame(() => {
+      const firstInvalid = leadRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+      if (!firstInvalid) {
+        return;
+      }
+
+      firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
+      firstInvalid.focus({ preventScroll: true });
+    });
   };
 
   const clearLeadSelection = () => {
@@ -1174,6 +1233,7 @@ export function HomePage() {
 
     if (Object.keys(nextErrors).length > 0) {
       pushToast("Перевір поля форми перед повторною відправкою.", "error");
+      focusFirstInvalidLeadField();
       return;
     }
 
@@ -1196,6 +1256,7 @@ export function HomePage() {
 
     if (Object.keys(nextErrors).length > 0) {
       pushToast("Перевір поля форми перед відправкою.", "error");
+      focusFirstInvalidLeadField();
       return;
     }
 
@@ -1474,6 +1535,11 @@ export function HomePage() {
                   <label className="toolbar-search">
                     <span>Пошук</span>
                     <input
+                      type="search"
+                      enterKeyHint="search"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
                       placeholder="Наприклад, ChatGPT, Netflix, VPN..."
                       value={searchTerm}
                       onChange={(event) =>
@@ -1513,6 +1579,7 @@ export function HomePage() {
                   <button
                     className={`filter-pill ${activeCategory === "all" ? "active" : ""}`}
                     type="button"
+                    aria-pressed={activeCategory === "all"}
                     onClick={() => updateCatalogParams({ category: "all" })}
                   >
                     <span>◼</span>
@@ -1525,6 +1592,7 @@ export function HomePage() {
                       }`}
                       key={category.id}
                       type="button"
+                      aria-pressed={activeCategory === category.id}
                       onClick={() => updateCatalogParams({ category: category.id })}
                     >
                       <span>{category.icon}</span>
@@ -1933,6 +2001,7 @@ export function HomePage() {
                   id="lead-name"
                   label="Ім'я"
                   autoComplete="name"
+                  enterKeyHint="next"
                   value={leadValues.name}
                   onChange={(event) => updateLeadTextField("name", event.target.value)}
                   placeholder="Як до тебе звертатися"
@@ -1942,6 +2011,10 @@ export function HomePage() {
                 <TextField
                   id="lead-contact"
                   label="Контакт"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  enterKeyHint="next"
                   value={leadValues.contact}
                   onChange={(event) => updateLeadTextField("contact", event.target.value)}
                   placeholder="Telegram, email або номер"
@@ -2000,6 +2073,7 @@ export function HomePage() {
                   className="lead-form-wide"
                   label="Повідомлення"
                   rows={5}
+                  enterKeyHint="done"
                   value={leadValues.message}
                   onChange={(event) => updateLeadTextField("message", event.target.value)}
                   placeholder="Що саме потрібно, на який термін, чи є питання"
@@ -2319,12 +2393,23 @@ export function HomePage() {
       )}
 
       <div className={`modal ${selectedProduct ? "is-open" : ""}`} aria-hidden={!selectedProduct}>
-        <div className="modal-backdrop" onClick={() => setSelectedProductId(null)}></div>
+        <button
+          className="modal-backdrop"
+          type="button"
+          aria-label="Закрити деталі товару"
+          tabIndex={-1}
+          onClick={() => setSelectedProductId(null)}
+        ></button>
         {!selectedProduct ? null : (
-          <DialogSurface className="modal-panel" labelledBy="modal-title">
+          <DialogSurface
+            className="modal-panel"
+            ref={productModalRef}
+            labelledBy="modal-title"
+          >
             <button
               className="modal-close"
               type="button"
+              ref={productModalCloseRef}
               aria-label="Закрити"
               onClick={() => setSelectedProductId(null)}
             >

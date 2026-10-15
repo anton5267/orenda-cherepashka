@@ -5550,3 +5550,226 @@ p {
     padding: clamp(1.25rem, 5vw, 1.75rem);
   }
 }
+
+/* Mobile interaction guardrails: keyboard, safe areas, scrolling, and touch targets. */
+.admin-selection-cell {
+  display: grid;
+  flex: 0 0 44px;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  margin: -8px 0 -8px -8px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.admin-selection-cell input {
+  width: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--brand-strong);
+}
+
+.checkbox-row {
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.catalog-filter-chip {
+  max-width: 100%;
+  min-height: 44px;
+}
+
+.catalog-filter-chip span,
+.admin-list-item,
+.admin-list-body,
+.admin-entity-copy,
+.modal-panel :is(h2, h3, p, li, strong, small, span) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-table {
+  max-width: 100%;
+}
+
+@media (max-width: 860px) {
+  .admin-content:has(.bulk-toolbar-floating) {
+    padding-bottom: calc(280px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 760px) {
+  html {
+    scroll-padding-top: max(72px, env(safe-area-inset-top));
+    scroll-padding-bottom: calc(150px + env(safe-area-inset-bottom));
+    overscroll-behavior-x: none;
+  }
+
+  .mobile-cta {
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
+    bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .mobile-cta > a {
+    min-height: 48px;
+  }
+
+  body:has(.catalog-toolbar :focus, .lead-form :focus) .mobile-cta {
+    display: none;
+  }
+
+  .mobile-menu {
+    height: 100vh;
+    height: 100dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-right: max(8px, env(safe-area-inset-right));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding-left: max(8px, env(safe-area-inset-left));
+  }
+
+  .mobile-menu-panel {
+    max-height: calc(100dvh - 88px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    margin-top: 68px;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-right: max(8px, env(safe-area-inset-right));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding-left: max(8px, env(safe-area-inset-left));
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-backdrop {
+    position: fixed;
+  }
+
+  .modal-panel {
+    width: 100%;
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    margin: 0 auto;
+    padding: clamp(16px, 4.5vw, 22px);
+    border-radius: 22px;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-close {
+    z-index: 2;
+    min-width: 44px;
+    min-height: 44px;
+    margin-bottom: 8px;
+    background: var(--surface-strong);
+  }
+
+  .modal-plan-option {
+    align-items: flex-start;
+    min-height: 60px;
+  }
+
+  .modal-plan-option > span:first-child {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .modal-plan-option > span:last-child {
+    flex: 0 0 auto;
+    text-align: right;
+  }
+
+  .modal-actions > * {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .catalog-filter-chip {
+    width: 100%;
+    justify-content: space-between;
+    padding-block: 8px;
+    text-align: left;
+  }
+
+  .catalog-filter-chip span:first-child {
+    flex: 1 1 auto;
+  }
+
+  .lead-quick-pick {
+    width: 100%;
+    min-height: 48px;
+    justify-content: space-between;
+    padding-block: 8px;
+    border-radius: 16px;
+    text-align: left;
+  }
+
+  .admin-mobile-bar {
+    top: max(8px, env(safe-area-inset-top));
+  }
+
+  .admin-list-item {
+    gap: 12px;
+  }
+
+  .admin-table {
+    display: block;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 420px) {
+  .modal-panel {
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .modal-header {
+    gap: 12px;
+  }
+
+  .modal-header .product-logo {
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    border-radius: 14px;
+  }
+}
+
+@media (pointer: coarse) {
+  .header-actions .menu-toggle,
+  .header-actions .theme-toggle {
+    width: 48px;
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .catalog-filter-chip,
+  .lead-quick-pick,
+  .modal-close,
+  .mobile-menu-close {
+    min-height: 48px;
+  }
+
+  .admin-selection-cell {
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .checkbox-row {
+    min-height: 48px;
+  }
+}

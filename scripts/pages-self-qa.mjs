@@ -163,6 +163,142 @@ try {
     "The current mobile section was not marked as active."
   );
   await page.getByRole("dialog", { name: "Навігація" }).getByRole("button", { name: "Закрити меню" }).click();
+
+  const touchContext = await browser.newContext({
+    viewport: { width: 320, height: 568 },
+    isMobile: true,
+    hasTouch: true
+  });
+  const touchPage = await touchContext.newPage();
+  touchPage.on("pageerror", (error) => errors.push(error.message));
+
+  try {
+    await installPagesApiMock(touchPage, new URL(baseUrl).origin);
+    await touchPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
+    await touchPage.locator(".product-card").first().waitFor();
+
+    const mobileMenuToggle = touchPage.getByRole("button", { name: "Відкрити меню" });
+    const menuToggleBox = await mobileMenuToggle.boundingBox();
+    assert(menuToggleBox && menuToggleBox.width >= 44 && menuToggleBox.height >= 44,
+      "Mobile menu toggle is smaller than a comfortable touch target.");
+    await mobileMenuToggle.click();
+    const touchMenu = touchPage.getByRole("dialog", { name: "Навігація" });
+    const menuPanel = touchPage.locator(".mobile-menu-panel");
+    await menuPanel.waitFor();
+    const menuGeometry = await menuPanel.evaluate((element) => ({
+      top: element.getBoundingClientRect().top,
+      bottom: element.getBoundingClientRect().bottom,
+      scrollHeight: element.scrollHeight,
+      clientHeight: element.clientHeight
+    }));
+    assert(menuGeometry.top >= 0 && menuGeometry.bottom <= 568,
+      "Mobile menu extends beyond the short phone viewport.");
+    assert(menuGeometry.scrollHeight >= menuGeometry.clientHeight,
+      "Mobile menu has an invalid scroll area.");
+    const menuActionBox = await touchMenu.getByRole("link", { name: "Залишити заявку" }).boundingBox();
+    assert(menuActionBox && menuActionBox.height >= 44,
+      "Mobile menu primary action is smaller than a comfortable touch target.");
+    await touchMenu.getByRole("button", { name: "Закрити меню" }).click();
+
+    const searchInput = touchPage.getByPlaceholder("Наприклад, ChatGPT, Netflix, VPN...");
+    assert.equal(await searchInput.getAttribute("type"), "search",
+      "Catalog search does not use a mobile-friendly search input.");
+    const searchFontSize = await searchInput.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
+    assert(searchFontSize >= 16, "Search text is small enough to trigger iOS input zoom.");
+    await searchInput.focus();
+    assert.equal(await touchPage.locator(".mobile-cta").evaluate((element) => getComputedStyle(element).display), "none",
+      "Fixed customer actions cover the catalog input while the mobile keyboard is open.");
+    await searchInput.fill("ChatGPT");
+    await touchPage.waitForTimeout(350);
+    assert(await touchPage.locator(".product-card").count() > 0,
+      "Mobile search did not return matching products.");
+
+    const filters = touchPage.locator(".filter-pill");
+    const allFilter = filters.first();
+    const categoryFilter = filters.nth(1);
+    await categoryFilter.click();
+    await touchPage.waitForFunction(() =>
+      document.querySelectorAll(".filter-pill")[1]?.getAttribute("aria-pressed") === "true"
+    );
+    assert.equal(await categoryFilter.getAttribute("aria-pressed"), "true",
+      "Selected category filter does not expose its pressed state.");
+    assert.equal(await allFilter.getAttribute("aria-pressed"), "false",
+      "The all-categories filter remained selected after choosing a category.");
+    const selectedFilterBox = await categoryFilter.boundingBox();
+    assert(selectedFilterBox && selectedFilterBox.height >= 44,
+      "Catalog category filter is smaller than a comfortable touch target.");
+
+    const activeSearchChip = touchPage.locator(".catalog-filter-chip").filter({ hasText: "Пошук:" });
+    const searchChipBox = await activeSearchChip.boundingBox();
+    assert(searchChipBox && searchChipBox.height >= 44 && searchChipBox.width <= 320,
+      "Active mobile filter chip is too small or wider than the viewport.");
+    await searchInput.fill("x".repeat(120));
+    await touchPage.waitForTimeout(350);
+    assert.equal(await touchPage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true,
+      "A long mobile search query causes horizontal overflow.");
+    await touchPage.getByRole("button", { name: /Показати весь каталог/ }).click();
+
+    await touchPage.setViewportSize({ width: 320, height: 568 });
+    const firstCard = touchPage.locator(".product-card").first();
+    const detailsButton = firstCard.getByRole("button", { name: "Детальніше" });
+    await detailsButton.click();
+    const modalPanel = touchPage.locator(".modal-panel");
+    await modalPanel.waitFor();
+    await touchPage.waitForFunction(() => document.activeElement?.classList.contains("modal-close"));
+    const modalGeometry = await modalPanel.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight
+      };
+    });
+    assert(modalGeometry.left >= 0 && modalGeometry.right <= 320 && modalGeometry.top >= 0 && modalGeometry.bottom <= 568,
+      "Product modal is clipped by a small phone viewport.");
+    assert(modalGeometry.scrollHeight > modalGeometry.clientHeight,
+      "Long product details cannot be scrolled inside the mobile modal.");
+    const modalCloseBox = await modalPanel.getByRole("button", { name: "Закрити", exact: true }).boundingBox();
+    assert(modalCloseBox && modalCloseBox.width >= 44 && modalCloseBox.height >= 44,
+      "Mobile modal close button is too small for touch.");
+    const firstPlan = modalPanel.locator(".modal-plan-option").first();
+    const planBox = await firstPlan.boundingBox();
+    assert(planBox && planBox.height >= 44 && planBox.width <= 320,
+      "Mobile modal tariff option is too small or too wide.");
+    await modalPanel.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+    assert(await modalPanel.evaluate((element) => element.scrollTop > 0),
+      "Product modal content does not scroll independently on mobile.");
+    await touchPage.keyboard.press("Shift+Tab");
+    assert.equal(await modalPanel.evaluate((element) => element.contains(document.activeElement)), true,
+      "Keyboard focus escaped the modal.");
+    await touchPage.keyboard.press("Escape");
+    await modalPanel.waitFor({ state: "detached" });
+    await touchPage.waitForFunction(() => document.activeElement?.textContent?.includes("Детальніше"));
+
+    await touchPage.locator("#lead-form").scrollIntoViewIfNeeded();
+    await touchPage.setViewportSize({ width: 320, height: 430 });
+    await touchPage.getByRole("button", { name: /Надіслати заявку/ }).click();
+    const invalidName = touchPage.getByLabel("Ім'я");
+    await touchPage.waitForFunction(() => document.activeElement?.id === "lead-name");
+    await touchPage.waitForFunction(() => {
+      const field = document.querySelector("#lead-name");
+      if (!field) return false;
+      const rect = field.getBoundingClientRect();
+      return rect.top >= 0 && rect.bottom <= window.innerHeight;
+    });
+    const invalidNameBox = await invalidName.boundingBox();
+    assert(invalidNameBox && invalidNameBox.y >= 0 && invalidNameBox.y + invalidNameBox.height <= 430,
+      "Submitting an invalid mobile form does not scroll the first error into view.");
+    assert.equal(await touchPage.locator(".mobile-cta").evaluate((element) => getComputedStyle(element).display), "none",
+      "Fixed actions cover the active form field while the phone keyboard is open.");
+    assert.equal(await touchPage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true,
+      "Mobile form interactions cause horizontal overflow at 320px.");
+  } finally {
+    await touchContext.close();
+  }
+
   await page.setViewportSize({ width: 1440, height: 900 });
   assert.equal(await page.locator(".desktop-nav").isVisible(), true, "Desktop navigation was hidden at 1440px.");
   assert.equal(await page.locator(".menu-toggle").isVisible(), false, "Mobile toggle remained visible at 1440px.");
