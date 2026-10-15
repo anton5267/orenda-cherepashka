@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import { errorMessage, getApiPath, getRouteId, httpError, jsonResponse, requiredEnv } from "../_shared/http.ts";
+import { createSupabaseApiKeyFetch } from "../_shared/supabaseApiKeyHeaders.ts";
 
 type JsonObject = Record<string, unknown>;
 const kindByRoute: Record<string, string> = {
@@ -10,6 +11,7 @@ function serviceClient() {
   const key = Deno.env.get("SUPABASE_SECRET_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!key) throw new Error("Missing SUPABASE_SECRET_KEY function secret");
   return createClient(requiredEnv("SUPABASE_URL"), key, {
+    global: { fetch: createSupabaseApiKeyFetch(key) },
     auth: { persistSession: false, autoRefreshToken: false }
   });
 }

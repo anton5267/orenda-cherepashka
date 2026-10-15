@@ -7,7 +7,8 @@ const publicSiteUrl = process.env.PUBLIC_SITE_URL?.trim() || "https://orenda-che
 const env = {
   ...process.env,
   PAGES_BASE_PATH: "/",
-  PUBLIC_SITE_URL: publicSiteUrl
+  PUBLIC_SITE_URL: publicSiteUrl,
+  SUPABASE_PRODUCT_METADATA_MODE: "seed"
 };
 
 for (const script of ["build-cloudflare.mjs", "pages-self-qa.mjs"]) {

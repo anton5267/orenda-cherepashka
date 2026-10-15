@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import express from "express";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { chromium } from "playwright";
 
@@ -8,7 +9,7 @@ const configuredBasePath = (process.env.PAGES_BASE_PATH ?? "/orenda-cherepashka"
   .trim()
   .replace(/^\/+|\/+$/g, "");
 const routePrefix = configuredBasePath ? `/${configuredBasePath}` : "";
-const publicSiteUrl = (process.env.PUBLIC_SITE_URL ?? "https://anton5267.github.io/orenda-cherepashka")
+const publicSiteUrl = (process.env.PUBLIC_SITE_URL ?? "https://orenda-cherepashka.pages.dev")
   .trim()
   .replace(/\/+$/, "");
 const app = express();
@@ -113,7 +114,7 @@ try {
     : baseUrl;
   await installPagesApiMock(page, new URL(baseUrl).origin);
   const response = await page.goto(initialUrl, { waitUntil: "domcontentloaded" });
-  assert.equal(response?.status(), 200, "GitHub Pages root did not return HTTP 200.");
+  assert.equal(response?.status(), 200, "Static site root did not return HTTP 200.");
 
   const homeHtml = await (await fetch(baseUrl)).text();
   assert.match(homeHtml, /name="robots" content="index,follow"/);
@@ -133,12 +134,16 @@ try {
   assert.doesNotMatch(homeHtml, /orenda-cherepashka\.shop/);
   const robotsResponse = await fetch(`${baseUrl}robots.txt`);
   const robotsText = await robotsResponse.text();
-  assert.equal(robotsResponse.status, 200, "GitHub Pages robots.txt did not return HTTP 200.");
+  assert.equal(robotsResponse.status, 200, "Static site robots.txt did not return HTTP 200.");
   assert.ok(robotsText.includes(`Sitemap: ${publicSiteUrl}/sitemap.xml`), "robots.txt sitemap URL does not match the configured public URL.");
   const sitemapResponse = await fetch(`${baseUrl}sitemap.xml`);
   const sitemapText = await sitemapResponse.text();
-  assert.equal(sitemapResponse.status, 200, "GitHub Pages sitemap.xml did not return HTTP 200.");
-  assert.equal((sitemapText.match(/<loc>/g) ?? []).length, 40, "Sitemap should contain home, four legal pages and 35 products.");
+  assert.equal(sitemapResponse.status, 200, "Static site sitemap.xml did not return HTTP 200.");
+  const sitemapLocs = [...sitemapText.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1]);
+  const newsSitemapLocs = sitemapLocs.filter((url) => /\/news\/[A-Za-z0-9_-]+\/$/.test(url));
+  assert.equal(sitemapLocs.length, 40 + newsSitemapLocs.length,
+    "Sitemap should contain home, four legal pages, all products, and only published news articles.");
+  assert(newsSitemapLocs.length > 0, "Sitemap must include published news articles.");
 
   const themeContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -704,10 +709,29 @@ try {
   assert(gmailSchema?.offers?.every((offer) => offer.priceCurrency === "USD"));
   assert.equal((await fetch(`${baseUrl}legal/privacy/`)).status, 200, "Legal page deep link did not return HTTP 200.");
 
+  const telegramSnapshot = JSON.parse(readFileSync(resolve("public/telegram-news.json"), "utf8"));
+  const firstTelegramStory = telegramSnapshot.items?.find((item) => item?.isActive && item?.sourceType === "telegram");
+  assert(firstTelegramStory?.id, "The bundled Telegram feed should contain a published story for article-route QA.");
+  const newsRoute = `news/${encodeURIComponent(firstTelegramStory.id)}/`;
+  const newsHtmlResponse = await fetch(`${baseUrl}${newsRoute}`);
+  assert.equal(newsHtmlResponse.status, 200, "Static news article deep link did not return HTTP 200.");
+  const newsHtml = await newsHtmlResponse.text();
+  assert.ok(newsHtml.includes(`rel="canonical" href="${publicSiteUrl}/${newsRoute}"`),
+    "News article canonical URL does not match the configured public URL.");
+  assert.match(newsHtml, /<meta property="og:type" content="article" \/>/);
+  const newsArticleSchema = [...newsHtml.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)]
+    .map((match) => JSON.parse(match[1]))
+    .find((schema) => schema["@type"] === "NewsArticle");
+  assert.equal(newsArticleSchema?.headline, firstTelegramStory.title, "NewsArticle structured data has the wrong headline.");
+  assert(newsSitemapLocs.includes(`${publicSiteUrl}/${newsRoute}`), "News article is missing from the public sitemap.");
+  await page.goto(`${baseUrl}${newsRoute}`, { waitUntil: "domcontentloaded" });
+  await page.getByTestId("news-article").waitFor();
+
   const responsiveAudit = [];
   const responsivePages = [
     ["home", "", ".product-card"],
     ["product", "p/grok-super-personal/", ".product-detail-page"],
+    ["news", newsRoute, "[data-testid=\"news-article\"]"],
     ["privacy", "legal/privacy/", ".legal-page-card"],
     ["terms", "legal/terms/", ".legal-page-card"],
     ["refund", "legal/refund/", ".legal-page-card"],
@@ -854,6 +878,7 @@ try {
     pagesApiFlow: apiSmokeEnabled ? "offline fallback and successful retry" : undefined,
     contentSecurityPolicy: "no violations",
     productDeepLink: "ok",
+    newsArticle: "published story deep links, JSON-LD and sitemap verified",
     mobileOverflow: false,
     responsiveAudit
   }, null, 2));

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   api,
   ApiError,
@@ -11,6 +11,7 @@ import {
 } from "../api";
 import { defaultSiteSettings } from "../../shared/siteDefaults";
 import { getTelegramPromotionExpiry } from "../../shared/newsDates";
+import { getTrustedTelegramSourceUrl } from "../newsFeed";
 import { preserveUtmAttribution, readUtmAttribution } from "../attribution";
 import type {
   Category,
@@ -1954,12 +1955,12 @@ export function HomePage() {
                         </span>
                       );
                     })()}
-                    <h3>{item.title}</h3>
+                    <h3><Link className="news-card-title-link" to={`/news/${encodeURIComponent(item.id)}`}>{item.title}</Link></h3>
                     <p>{item.content}</p>
                     <div className="news-card-footer">
                       <span>{item.sourceType === "telegram" ? "Публікація каналу" : "Оновлення для замовлення"}</span>
-                      {item.sourceUrl ? (
-                        <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">
+                      {getTrustedTelegramSourceUrl(item.sourceUrl) ? (
+                        <a href={getTrustedTelegramSourceUrl(item.sourceUrl) ?? undefined} target="_blank" rel="noopener noreferrer">
                           Джерело в Telegram ↗
                         </a>
                       ) : (

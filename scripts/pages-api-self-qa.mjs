@@ -20,7 +20,8 @@ const buildEnv = {
   ...process.env,
   VITE_STATIC_SITE: "true",
   VITE_SUPABASE_URL: supabaseUrl,
-  VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_pages_smoke"
+  VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_pages_smoke",
+  SUPABASE_PRODUCT_METADATA_MODE: "seed"
 };
 
 runScript("scripts/build-pages.mjs", buildEnv);

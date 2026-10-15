@@ -5,6 +5,17 @@ export interface ExcludedTelegramNewsSource {
   sourceMessageId?: number | null;
 }
 
+export function getTrustedTelegramSourceUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.hostname !== "t.me" || url.username || url.password) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 export function mergeTelegramNews(
   storedNews: NewsItem[],
   channelItems: NewsItem[],

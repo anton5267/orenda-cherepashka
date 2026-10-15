@@ -6,6 +6,8 @@ data/
 .local/
 artifacts/
 .env
+.env.*
+!.env.example
 .env.docker
 supabase/.temp/
 supabase/.branches/

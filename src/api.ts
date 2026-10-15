@@ -30,6 +30,7 @@ import {
   seedSiteSettings
 } from "../shared/seedData";
 import { mergeTelegramNews } from "./newsFeed";
+import { createSupabaseApiHeaders } from "../supabase/functions/_shared/supabaseApiKeyHeaders";
 
 export class ApiError extends Error {
   status: number;
@@ -128,9 +129,7 @@ export async function apiRequest<T>(
       const functionName = isAdminPath ? "orenda-admin" : "orenda-public";
       const sessionResult = isAdminPath ? await supabase.auth.getSession() : null;
       const accessToken = sessionResult?.data.session?.access_token;
-      const headers = new Headers(init?.headers);
-      headers.set("apikey", supabasePublishableKey);
-      headers.set("Authorization", `Bearer ${accessToken ?? supabasePublishableKey}`);
+      const headers = createSupabaseApiHeaders(supabasePublishableKey, accessToken, init?.headers);
       if (init?.body != null && !headers.has("Content-Type")) {
         headers.set("Content-Type", "application/json");
       }
