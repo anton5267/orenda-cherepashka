@@ -16,7 +16,7 @@ password_requirements = "lower_upper_letters_digits"
 verify_jwt = false
 
 [functions.orenda-admin]
-verify_jwt = false
+verify_jwt = true
 
 [functions.telegram-webhook]
 verify_jwt = false

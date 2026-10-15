@@ -437,7 +437,15 @@ async function runAdminCategoryRecoveryRegression(browser) {
       (await nameInput.inputValue()) === categoryName,
       "Category draft name was lost after failed save recovery scenario."
     );
+    const categoryRetryResponse = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/admin/categories" &&
+        response.request().method() === "POST" &&
+        response.ok(),
+      { timeout: 15000 }
+    );
     await saveFailureNotice.getByRole("button", { name: "Повторити збереження" }).click();
+    await categoryRetryResponse;
     await page.unroute("**/api/admin/categories");
 
     const createdCard = page.locator(".admin-list-item").filter({ hasText: categoryName }).first();

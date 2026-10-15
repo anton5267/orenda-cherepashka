@@ -28,6 +28,11 @@ const LegalPage = lazy(() =>
 const AdminLoginPage = lazy(() =>
   import("./pages/AdminLoginPage").then(({ AdminLoginPage }) => ({ default: AdminLoginPage }))
 );
+const AdminPasswordRecoveryPage = lazy(() =>
+  import("./pages/AdminPasswordRecoveryPage").then(({ AdminPasswordRecoveryPage }) => ({
+    default: AdminPasswordRecoveryPage
+  }))
+);
 const { AdminGuard, AdminLayout } = {
   AdminGuard: lazy(() =>
     import("./pages/admin/AdminLayout").then(({ AdminGuard }) => ({ default: AdminGuard }))
@@ -136,6 +141,10 @@ const router = createBrowserRouter(
       <Route
         path="/admin/login"
         element={isStaticSite && !isSupabaseConfigured ? <Navigate to="/" replace /> : <AdminLoginPage />}
+      />
+      <Route
+        path="/admin/reset-password"
+        element={isStaticSite && !isSupabaseConfigured ? <Navigate to="/" replace /> : <AdminPasswordRecoveryPage />}
       />
       <Route element={isStaticSite && !isSupabaseConfigured ? <Navigate to="/" replace /> : <AdminGuard />}>
         <Route path="/admin" element={<AdminLayout />}>

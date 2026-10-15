@@ -234,6 +234,11 @@ export function AdminLoginPage() {
                   Назад на сайт
                 </ActionLink>
               </div>
+              {isSupabaseConfigured ? (
+                <ActionLink variant="secondary" href="/admin/reset-password">
+                  Не пам’ятаєш пароль? Відновити доступ
+                </ActionLink>
+              ) : null}
             </form>
           )}
         </section>
