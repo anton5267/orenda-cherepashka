@@ -4942,3 +4942,228 @@ select {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+
+/* Shared design-system overrides must stay last so every route uses the same states. */
+:root {
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--brand) 30%, transparent);
+  --control-height: 48px;
+  --control-radius: 14px;
+  --card-radius: 20px;
+  --dialog-radius: 24px;
+  --shadow-card: 0 12px 32px rgba(20, 43, 32, 0.06);
+}
+
+[data-theme="dark"] {
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--brand) 36%, transparent);
+  --shadow-card: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+.primary-button:focus-visible,
+.ghost-button:focus-visible,
+.cta-button:focus-visible,
+.detail-button:focus-visible,
+.danger-button:focus-visible,
+.filter-pill:focus-visible,
+.theme-toggle:focus-visible,
+.menu-toggle:focus-visible,
+.icon-button:focus-visible,
+.admin-nav-link:focus-visible,
+.modal-close:focus-visible,
+.mobile-menu-close:focus-visible,
+.active-filter-chip:focus-visible,
+.lead-quick-pick:focus-visible,
+.admin-tabs a:focus-visible,
+.mobile-nav a:focus-visible,
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.primary-button:disabled,
+.ghost-button:disabled,
+.cta-button:disabled,
+.detail-button:disabled,
+.danger-button:disabled,
+.filter-pill:disabled,
+.theme-toggle:disabled,
+.menu-toggle:disabled,
+.icon-button:disabled,
+.modal-close:disabled,
+.mobile-menu-close:disabled,
+.primary-button[aria-disabled="true"],
+.ghost-button[aria-disabled="true"],
+.danger-button[aria-disabled="true"],
+.primary-button.is-loading,
+.ghost-button.is-loading,
+.danger-button.is-loading {
+  opacity: 0.58;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.primary-button[data-state="success"],
+.ghost-button[data-state="success"],
+.danger-button[data-state="success"] {
+  outline: 2px solid color-mix(in srgb, var(--success) 64%, transparent);
+  outline-offset: 2px;
+}
+
+.primary-button[data-state="warning"],
+.ghost-button[data-state="warning"],
+.danger-button[data-state="warning"] {
+  outline: 2px solid color-mix(in srgb, var(--warning) 64%, transparent);
+  outline-offset: 2px;
+}
+
+.primary-button[data-state="error"],
+.ghost-button[data-state="error"],
+.danger-button[data-state="error"] {
+  outline: 2px solid color-mix(in srgb, var(--danger) 64%, transparent);
+  outline-offset: 2px;
+}
+
+.field-group { display: grid; align-content: start; min-width: 0; gap: 7px; }
+.field-label {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 10px !important;
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 750;
+}
+.field-optional { color: var(--muted); font-size: 0.76rem; font-weight: 600; }
+
+.field-control,
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: 11px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--control-radius);
+  color: var(--ink);
+  background: var(--surface-strong);
+  font: inherit;
+  transition: border-color var(--transition), box-shadow var(--transition), background-color var(--transition);
+}
+
+.field-control:focus-visible,
+input:not([type="checkbox"]):not([type="radio"]):focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: var(--focus-ring);
+}
+
+.field-control:disabled,
+input:not([type="checkbox"]):not([type="radio"]):disabled,
+select:disabled,
+textarea:disabled {
+  color: var(--muted);
+  background: var(--surface-soft);
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.field-control[aria-invalid="true"],
+.field-control.is-invalid,
+input:not([type="checkbox"]):not([type="radio"])[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: color-mix(in srgb, var(--danger) 66%, var(--line));
+  background: color-mix(in srgb, var(--danger) 7%, var(--surface-strong));
+}
+
+.field-group[data-state="success"] .field-control { border-color: color-mix(in srgb, var(--success) 55%, var(--line)); }
+.field-group[data-state="loading"] .field-control { cursor: progress; }
+.field-group[data-state="loading"] { cursor: progress; }
+.field-message { display: block; min-height: 1.2em; font-size: 0.82rem; line-height: 1.45; }
+.field-message.field-error { color: var(--danger); }
+.field-message.field-success, .field-message.field-hint-success { color: var(--success); }
+.field-message.field-hint { color: var(--muted); }
+.field-message.field-hint-warning { color: var(--warning); }
+
+.ds-card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--card-radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+.ds-card[data-state="success"] { border-color: color-mix(in srgb, var(--success) 44%, var(--line)); }
+.ds-card[data-state="warning"] { border-color: color-mix(in srgb, var(--warning) 44%, var(--line)); }
+.ds-card[data-state="error"] { border-color: color-mix(in srgb, var(--danger) 44%, var(--line)); }
+.ds-card[data-state="loading"] { opacity: 0.72; cursor: progress; }
+.product-card,
+.feature-card,
+.faq-item,
+.news-card,
+.admin-card,
+.admin-list-item,
+.dashboard-stat,
+.settings-preview-card,
+.hero-proof-card,
+.hero-shortcut-card,
+.lead-flow-card,
+.review-card,
+.product-detail-page,
+.lead-panel,
+.auth-card { border-radius: var(--card-radius); }
+.lead-form .field-group.lead-form-wide { grid-column: 1 / -1; }
+
+.ds-dialog-surface,
+.modal-panel,
+.mobile-menu-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--dialog-radius);
+  color: var(--ink);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-lg);
+}
+
+.admin-mobile-nav a[aria-current="page"],
+.admin-nav-link.is-active {
+  border-color: color-mix(in srgb, var(--brand) 42%, var(--line));
+  color: var(--brand-strong);
+  background: color-mix(in srgb, var(--brand) 10%, var(--surface));
+}
+
+@media (hover: hover) {
+  .ds-card-interactive:hover { border-color: color-mix(in srgb, var(--brand) 36%, var(--line)); box-shadow: var(--shadow-card); transform: translateY(-2px); }
+  .mobile-nav a:hover, .admin-nav-link:hover { border-color: color-mix(in srgb, var(--brand) 30%, var(--line)); background: color-mix(in srgb, var(--brand) 7%, var(--surface)); }
+}
+
+.button-spinner {
+  width: 1em;
+  height: 1em;
+  flex: 0 0 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: ds-spin 700ms linear infinite;
+}
+@keyframes ds-spin { to { transform: rotate(360deg); } }
+
+@media (pointer: coarse) {
+  button, [role="button"], .primary-button, .ghost-button, .cta-button, .detail-button,
+  .danger-button, .filter-pill, .theme-toggle, .menu-toggle, .icon-button, .modal-close,
+  .mobile-menu-close, .active-filter-chip, .admin-tabs a, .admin-nav-link, .mobile-nav a,
+  .compact { min-height: 44px; }
+  .icon-button, .menu-toggle, .modal-close, .mobile-menu-close,
+  .header-actions .theme-toggle, .header-actions .menu-toggle { min-width: 44px; min-height: 44px; }
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea { min-height: var(--control-height); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button-spinner { animation-duration: 1400ms; }
+  .ds-card-interactive, .primary-button, .ghost-button, .filter-pill, .admin-nav-link { transition-duration: 0.01ms; }
+}

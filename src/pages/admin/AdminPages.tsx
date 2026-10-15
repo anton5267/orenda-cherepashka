@@ -20,7 +20,15 @@ import type {
 } from "../../types";
 import { api, ApiError } from "../../api";
 import { useAdminUnsavedChanges } from "./AdminLayout";
-import { EmptyState, NoticePanel, ProductLogo, formatPrice } from "../../shared";
+import {
+  ActionButton,
+  ActionLink,
+  EmptyState,
+  NoticePanel,
+  ProductLogo,
+  SurfaceCard,
+  formatPrice
+} from "../../shared";
 import { useToast } from "../../toasts";
 import { recommendedSettingsCopy } from "../../../shared/siteDefaults";
 
@@ -116,13 +124,13 @@ function AdminCard({
   id?: string;
 }) {
   return (
-    <section className={`admin-card ${className}`.trim()} id={id}>
+    <SurfaceCard as="section" className={`admin-card ${className}`.trim()} id={id}>
       <div className="admin-card-head">
         <h2>{title}</h2>
         {extra}
       </div>
       {children}
-    </section>
+    </SurfaceCard>
   );
 }
 
@@ -153,15 +161,15 @@ function SplitViewNav({
 }) {
   return (
     <div className="split-view-nav">
-      <button className="primary-button compact" type="button" onClick={onCreate}>
+      <ActionButton size="compact" type="button" onClick={onCreate}>
         {createLabel}
-      </button>
-      <a className="ghost-button compact" href="#editor-panel">
+      </ActionButton>
+      <ActionLink variant="secondary" size="compact" href="#editor-panel">
         До форми
-      </a>
-      <a className="ghost-button compact" href="#list-panel">
+      </ActionLink>
+      <ActionLink variant="secondary" size="compact" href="#list-panel">
         До списку
-      </a>
+      </ActionLink>
     </div>
   );
 }
@@ -199,17 +207,17 @@ function BulkActionBar({
           </option>
         ))}
       </select>
-      <button
-        className="primary-button compact"
+      <ActionButton
+        size="compact"
         type="button"
         onClick={onApply}
         disabled={!value}
       >
         Застосувати
-      </button>
-      <button className="ghost-button compact" type="button" onClick={onClear}>
+      </ActionButton>
+      <ActionButton variant="secondary" size="compact" type="button" onClick={onClear}>
         Очистити
-      </button>
+      </ActionButton>
     </>
   );
 
@@ -259,16 +267,16 @@ function EditorToolbar({
       </div>
       <div className="editor-toolbar-actions">
         {!shortcutHref || !shortcutLabel ? null : (
-          <a className="ghost-button compact" href={shortcutHref}>
+          <ActionLink variant="secondary" size="compact" href={shortcutHref}>
             {shortcutLabel}
-          </a>
+          </ActionLink>
         )}
-        <button className="primary-button compact" type="submit" disabled={saving}>
-          {saving ? "Збереження..." : isEditing ? updateLabel : createLabel}
-        </button>
-        <button className="ghost-button compact" type="button" onClick={onReset}>
+        <ActionButton size="compact" type="submit" loading={saving} loadingLabel="Збереження...">
+          {isEditing ? updateLabel : createLabel}
+        </ActionButton>
+        <ActionButton variant="secondary" size="compact" type="button" onClick={onReset}>
           Скинути
-        </button>
+        </ActionButton>
       </div>
     </div>
   );
@@ -304,9 +312,9 @@ function ActiveFiltersBar({
           </button>
         ))}
       </div>
-      <button className="ghost-button compact" type="button" onClick={onReset}>
+      <ActionButton variant="secondary" size="compact" type="button" onClick={onReset}>
         Скинути все
-      </button>
+      </ActionButton>
     </div>
   );
 }

@@ -22,13 +22,19 @@ import type {
   SiteSettings
 } from "../types";
 import {
+  ActionButton,
+  ActionLink,
   BrandLink,
+  DialogSurface,
   EmptyState,
   LoadingGrid,
   NoticePanel,
   PageShell,
   ProductLogo,
   Reveal,
+  SelectField,
+  TextAreaField,
+  TextField,
   ThemeToggle,
   formatPrice,
   getLowestPlan
@@ -1275,12 +1281,10 @@ export function HomePage() {
               aria-label="Закрити меню"
               onClick={() => setMenuOpen(false)}
             ></button>
-            <div
+            <DialogSurface
               className="mobile-menu-panel"
               ref={mobileMenuPanelRef}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="mobile-menu-title"
+              labelledBy="mobile-menu-title"
             >
               <div className="mobile-menu-head">
                 <div>
@@ -1345,7 +1349,7 @@ export function HomePage() {
                 </a> : null}
               </div>
 
-            </div>
+            </DialogSurface>
           </div>
         )}
       </header>
@@ -1925,103 +1929,81 @@ export function HomePage() {
                   </div>
                 </div>
 
-                <label className={leadErrors.name ? "is-invalid" : ""}>
-                  Ім'я
-                  <input
-                    aria-invalid={Boolean(leadErrors.name)}
-                    className={leadErrors.name ? "is-invalid" : ""}
-                    value={leadValues.name}
-                    onChange={(event) => updateLeadTextField("name", event.target.value)}
-                    placeholder="Як до тебе звертатися"
-                  />
-                  {!leadErrors.name ? null : (
-                    <span className="field-error">{leadErrors.name}</span>
-                  )}
-                </label>
+                <TextField
+                  id="lead-name"
+                  label="Ім'я"
+                  autoComplete="name"
+                  value={leadValues.name}
+                  onChange={(event) => updateLeadTextField("name", event.target.value)}
+                  placeholder="Як до тебе звертатися"
+                  error={leadErrors.name}
+                />
 
-                <label className={leadErrors.contact ? "is-invalid" : ""}>
-                  Контакт
-                  <input
-                    aria-invalid={Boolean(leadErrors.contact)}
-                    className={leadErrors.contact ? "is-invalid" : ""}
-                    value={leadValues.contact}
-                    onChange={(event) => updateLeadTextField("contact", event.target.value)}
-                    placeholder="Telegram, email або номер"
-                  />
-                  {!leadErrors.contact ? null : (
-                    <span className="field-error">{leadErrors.contact}</span>
-                  )}
-                  {leadErrors.contact ? null : (
-                    <small className={`field-hint field-hint-${contactFieldHint.tone}`}>
-                      {contactFieldHint.text}
-                    </small>
-                  )}
-                </label>
+                <TextField
+                  id="lead-contact"
+                  label="Контакт"
+                  value={leadValues.contact}
+                  onChange={(event) => updateLeadTextField("contact", event.target.value)}
+                  placeholder="Telegram, email або номер"
+                  error={leadErrors.contact}
+                  success={contactFieldHint.tone === "success" ? contactFieldHint.text : undefined}
+                  hint={contactFieldHint.tone === "success" ? undefined : contactFieldHint.text}
+                  hintTone={contactFieldHint.tone}
+                />
 
-                <label className={leadErrors.productId ? "is-invalid" : ""}>
-                  Товар
-                  <select
-                    aria-invalid={Boolean(leadErrors.productId)}
-                    className={leadErrors.productId ? "is-invalid" : ""}
-                    value={leadValues.productId}
-                    onChange={(event) => updateLeadProductSelection(event.target.value)}
-                  >
-                    <option value="">Оберіть товар</option>
-                    {products.map((product) => (
-                      <option key={product.id} value={product.id}>
-                        {product.name}
-                      </option>
-                    ))}
-                  </select>
-                  {!leadErrors.productId ? null : (
-                    <span className="field-error">{leadErrors.productId}</span>
-                  )}
-                </label>
+                <SelectField
+                  id="lead-product"
+                  label="Товар"
+                  value={leadValues.productId}
+                  onChange={(event) => updateLeadProductSelection(event.target.value)}
+                  error={leadErrors.productId}
+                >
+                  <option value="">Оберіть товар</option>
+                  {products.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name}
+                    </option>
+                  ))}
+                </SelectField>
 
-                <label className={leadErrors.pricingOptionId ? "is-invalid" : ""}>
-                  Тариф
-                  <select
-                    aria-invalid={Boolean(leadErrors.pricingOptionId)}
-                    className={leadErrors.pricingOptionId ? "is-invalid" : ""}
-                    disabled={!selectedLeadProduct}
-                    value={leadValues.pricingOptionId}
-                    onChange={(event) => updateLeadPlanSelection(event.target.value)}
-                  >
-                    <option value="">Оберіть тариф</option>
-                    {selectedLeadPlans.map((plan) => (
-                      <option key={plan.id} value={plan.id}>
-                        {plan.label} — {formatPrice(plan)}
-                        {getPlanSavings(plan) > 0
-                          ? ` • економія ${formatPrice(getPlanSavings(plan), plan.currency)}`
-                          : ""}
-                      </option>
-                    ))}
-                  </select>
-                  {!leadErrors.pricingOptionId ? null : (
-                    <span className="field-error">{leadErrors.pricingOptionId}</span>
-                  )}
-                </label>
+                <SelectField
+                  id="lead-pricing-option"
+                  label="Тариф"
+                  disabled={!selectedLeadProduct}
+                  value={leadValues.pricingOptionId}
+                  onChange={(event) => updateLeadPlanSelection(event.target.value)}
+                  error={leadErrors.pricingOptionId}
+                >
+                  <option value="">Оберіть тариф</option>
+                  {selectedLeadPlans.map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.label} — {formatPrice(plan)}
+                      {getPlanSavings(plan) > 0
+                        ? ` • економія ${formatPrice(getPlanSavings(plan), plan.currency)}`
+                        : ""}
+                    </option>
+                  ))}
+                </SelectField>
 
-                <label>
-                  Коли потрібна підписка? <span className="field-optional">необов'язково</span>
-                  <input
-                    aria-label="Коли потрібна підписка"
-                    type="date"
-                    min={getTodayDateInputValue()}
-                    value={leadValues.neededBy}
-                    onChange={(event) => updateLeadTextField("neededBy", event.target.value)}
-                  />
-                </label>
+                <TextField
+                  id="lead-needed-by"
+                  label="Коли потрібна підписка?"
+                  optional
+                  type="date"
+                  min={getTodayDateInputValue()}
+                  value={leadValues.neededBy}
+                  onChange={(event) => updateLeadTextField("neededBy", event.target.value)}
+                />
 
-                <label>
-                  Повідомлення
-                  <textarea
-                    rows={5}
-                    value={leadValues.message}
-                    onChange={(event) => updateLeadTextField("message", event.target.value)}
-                    placeholder="Що саме потрібно, на який термін, чи є питання"
-                  />
-                </label>
+                <TextAreaField
+                  id="lead-message"
+                  className="lead-form-wide"
+                  label="Повідомлення"
+                  rows={5}
+                  value={leadValues.message}
+                  onChange={(event) => updateLeadTextField("message", event.target.value)}
+                  placeholder="Що саме потрібно, на який термін, чи є питання"
+                />
 
                 <div
                   className={`lead-summary ${selectedLeadProduct && selectedLeadPlan ? "lead-summary-selected" : ""}`}
@@ -2120,21 +2102,23 @@ export function HomePage() {
                 )}
 
                 <div className="lead-actions">
-                  <button className="primary-button" type="submit" disabled={leadSubmitting}>
-                    {leadSubmitting
-                      ? "Відправлення..."
-                      : leadReadyCount === leadReadiness.length
-                        ? "Надіслати готову заявку"
-                        : "Надіслати заявку"}
-                  </button>
-                  <a
-                    className="ghost-button"
+                  <ActionButton
+                    type="submit"
+                    loading={leadSubmitting}
+                    loadingLabel="Відправлення заявки..."
+                  >
+                    {leadReadyCount === leadReadiness.length
+                      ? "Надіслати готову заявку"
+                      : "Надіслати заявку"}
+                  </ActionButton>
+                  <ActionLink
+                    variant="secondary"
                     href={displaySettings.telegramContactUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
                     Написати в Telegram
-                  </a>
+                  </ActionLink>
                 </div>
               </form>
             </Reveal>
@@ -2337,12 +2321,7 @@ export function HomePage() {
       <div className={`modal ${selectedProduct ? "is-open" : ""}`} aria-hidden={!selectedProduct}>
         <div className="modal-backdrop" onClick={() => setSelectedProductId(null)}></div>
         {!selectedProduct ? null : (
-          <div
-            className="modal-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="modal-title"
-          >
+          <DialogSurface className="modal-panel" labelledBy="modal-title">
             <button
               className="modal-close"
               type="button"
@@ -2443,24 +2422,23 @@ export function HomePage() {
             </div>
 
             <div className="modal-actions">
-              <button
-                className="primary-button"
+              <ActionButton
                 type="button"
                 onClick={() => startLeadForProduct(selectedProduct, selectedPlanId)}
                 disabled={!selectedProductPlans.length}
               >
                 Замовити через заявку
-              </button>
-              <a
-                className="ghost-button"
+              </ActionButton>
+              <ActionLink
+                variant="secondary"
                 href={displaySettings.telegramContactUrl}
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 Написати в Telegram
-              </a>
+              </ActionLink>
             </div>
-          </div>
+          </DialogSurface>
         )}
       </div>
     </PageShell>

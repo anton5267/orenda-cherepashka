@@ -16,7 +16,14 @@ import {
 } from "react-router-dom";
 import { useBlocker } from "react-router";
 import { api, ApiError } from "../../api";
-import { EmptyState, NoticePanel, PageShell, ThemeToggle } from "../../shared";
+import {
+  ActionButton,
+  DialogSurface,
+  EmptyState,
+  NoticePanel,
+  PageShell,
+  ThemeToggle
+} from "../../shared";
 import { useToast } from "../../toasts";
 
 const defaultUnsavedChangesMessage = "Є незбережені зміни. Продовжити без збереження?";
@@ -136,8 +143,8 @@ export function AdminGuard() {
           title="Не вдалося перевірити адмін-сесію"
           description={loadError}
           action={
-            <button
-              className="primary-button compact"
+            <ActionButton
+              className="compact"
               type="button"
               onClick={() => {
                 setChecking(true);
@@ -145,7 +152,7 @@ export function AdminGuard() {
               }}
             >
               Повторити запит
-            </button>
+            </ActionButton>
           }
         />
       </PageShell>
@@ -206,6 +213,9 @@ export function AdminLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [unsavedMessage, setUnsavedMessage] = useState<string | null>(null);
   const [allowUnsafeNavigation, setAllowUnsafeNavigation] = useState(false);
+  const menuToggleRef = useRef<HTMLButtonElement | null>(null);
+  const mobileMenuPanelRef = useRef<HTMLDivElement | null>(null);
+  const mobileMenuWasOpenRef = useRef(false);
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
       Boolean(unsavedMessage) &&
@@ -246,14 +256,48 @@ export function AdminLayout() {
     document.body.classList.toggle("menu-open", menuOpen);
 
     if (!menuOpen) {
+      if (mobileMenuWasOpenRef.current) {
+        mobileMenuWasOpenRef.current = false;
+        window.requestAnimationFrame(() => menuToggleRef.current?.focus({ preventScroll: true }));
+      }
+
       return () => {
         document.body.classList.remove("menu-open");
       };
     }
 
+    mobileMenuWasOpenRef.current = true;
+    const panel = mobileMenuPanelRef.current;
+    const getFocusable = () =>
+      Array.from(
+        panel?.querySelectorAll<HTMLElement>(
+          'a[href]:not([aria-disabled="true"]), button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ) ?? []
+      );
+
+    window.requestAnimationFrame(() => getFocusable()[0]?.focus({ preventScroll: true }));
+
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setMenuOpen(false);
+        return;
+      }
+
+      if (event.key === "Tab") {
+        const focusable = getFocusable();
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const focusIsOutsidePanel = !panel?.contains(document.activeElement);
+
+        if (!first || !last) {
+          event.preventDefault();
+        } else if (event.shiftKey && (document.activeElement === first || focusIsOutsidePanel)) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && (document.activeElement === last || focusIsOutsidePanel)) {
+          event.preventDefault();
+          first.focus();
+        }
       }
     };
 
@@ -390,8 +434,9 @@ export function AdminLayout() {
                   description={logoutError}
                   tone="danger"
                   action={
-                    <button
-                      className="ghost-button compact"
+                    <ActionButton
+                      variant="secondary"
+                      size="compact"
                       type="button"
                       disabled={loggingOut}
                       onClick={() => {
@@ -400,20 +445,22 @@ export function AdminLayout() {
                       }}
                     >
                       Повторити вихід
-                    </button>
+                    </ActionButton>
                   }
                 />
               )}
               {renderUnsavedCard("admin-sidebar-status")}
               <ThemeToggle />
-              <button
-                className="ghost-button compact"
+              <ActionButton
+                variant="secondary"
+                size="compact"
                 type="button"
                 onClick={handleLogout}
-                disabled={loggingOut}
+                loading={loggingOut}
+                loadingLabel="Вихід..."
               >
-                {loggingOut ? "Вихід..." : "Вийти"}
-              </button>
+                Вийти
+              </ActionButton>
             </div>
           </aside>
 
@@ -442,6 +489,7 @@ export function AdminLayout() {
                   На сайт
                 </Link>
                 <button
+                  ref={menuToggleRef}
                   className="menu-toggle admin-menu-toggle"
                   type="button"
                   aria-expanded={menuOpen}
@@ -464,9 +512,14 @@ export function AdminLayout() {
                   aria-label="Закрити навігацію"
                   onClick={() => setMenuOpen(false)}
                 ></button>
-                <div className="mobile-menu-panel admin-mobile-menu-panel">
+                <DialogSurface
+                  ref={mobileMenuPanelRef}
+                  id="admin-mobile-menu-dialog"
+                  className="mobile-menu-panel admin-mobile-menu-panel"
+                  labelledBy="admin-mobile-menu-title"
+                >
                   <div className="mobile-menu-head">
-                    <strong>Навігація адмінки</strong>
+                    <strong id="admin-mobile-menu-title">Навігація адмінки</strong>
                     <p>Швидкі переходи між розділами і діями без довгого скролу sidebar.</p>
                     {renderUnsavedCard("admin-mobile-menu-status")}
                   </div>
@@ -493,8 +546,9 @@ export function AdminLayout() {
                         description={logoutError}
                         tone="danger"
                         action={
-                          <button
-                            className="ghost-button compact"
+                          <ActionButton
+                            variant="secondary"
+                            size="compact"
                             type="button"
                             disabled={loggingOut}
                             onClick={() => {
@@ -503,19 +557,21 @@ export function AdminLayout() {
                             }}
                           >
                             Повторити вихід
-                          </button>
+                          </ActionButton>
                         }
                       />
                     )}
                     <ThemeToggle />
-                    <button
-                      className="ghost-button compact"
+                    <ActionButton
+                      variant="secondary"
+                      size="compact"
                       type="button"
                       onClick={handleLogout}
-                      disabled={loggingOut}
+                      loading={loggingOut}
+                      loadingLabel="Вихід..."
                     >
-                      {loggingOut ? "Вихід..." : "Вийти"}
-                    </button>
+                      Вийти
+                    </ActionButton>
                     <Link
                       className="ghost-button compact mobile-menu-admin-link"
                       to="/"
@@ -528,7 +584,7 @@ export function AdminLayout() {
                       На публічний сайт
                     </Link>
                   </div>
-                </div>
+                </DialogSurface>
               </div>
             )}
 

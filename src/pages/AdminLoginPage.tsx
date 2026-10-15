@@ -1,7 +1,15 @@
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api";
-import { BrandLink, NoticePanel, PageShell, ThemeToggle } from "../shared";
+import {
+  ActionButton,
+  ActionLink,
+  BrandLink,
+  NoticePanel,
+  PageShell,
+  TextField,
+  ThemeToggle
+} from "../shared";
 import { useToast } from "../toasts";
 
 export function AdminLoginPage() {
@@ -152,26 +160,26 @@ export function AdminLoginPage() {
                   description={sessionError}
                   tone="warning"
                   action={
-                    <button
-                      className="ghost-button compact"
+                    <ActionButton
+                      variant="secondary"
+                      size="compact"
                       type="button"
                       onClick={() => void checkSession()}
                     >
                       Повторити запит
-                    </button>
+                    </ActionButton>
                   }
                 />
               )}
-              <label>
-                Пароль
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Введіть пароль"
-                  required
-                />
-              </label>
+              <TextField
+                id="admin-password"
+                label="Пароль"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Введіть пароль"
+                required
+              />
 
               {!error ? null : (
                 <NoticePanel
@@ -180,26 +188,27 @@ export function AdminLoginPage() {
                   tone="danger"
                   action={
                     !retryableLogin ? undefined : (
-                      <button
-                        className="ghost-button compact"
+                      <ActionButton
+                        variant="secondary"
+                        size="compact"
                         type="button"
                         disabled={submitting}
                         onClick={() => void submitPassword(password)}
                       >
                         Повторити вхід
-                      </button>
+                      </ActionButton>
                     )
                   }
                 />
               )}
 
               <div className="auth-actions">
-                <button className="primary-button" type="submit" disabled={submitting}>
-                  {submitting ? "Вхід..." : "Увійти"}
-                </button>
-                <a className="ghost-button" href="/">
+                <ActionButton type="submit" loading={submitting} loadingLabel="Вхід...">
+                  Увійти
+                </ActionButton>
+                <ActionLink variant="secondary" href="/">
                   Назад на сайт
-                </a>
+                </ActionLink>
               </div>
             </form>
           )}
