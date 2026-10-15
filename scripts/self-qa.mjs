@@ -1725,6 +1725,40 @@ async function runPublicChecks(browser) {
   const mobileShot = await saveScreenshot(mobilePage, "public-mobile.png");
   await mobilePage.locator("#lead-form").scrollIntoViewIfNeeded();
   const mobileLeadShot = await saveScreenshot(mobilePage, "public-mobile-lead.png");
+  await mobilePage
+    .locator("#lead-form")
+    .getByRole("button", { name: /Надіслати/ })
+    .click();
+  const mobileValidationToast = mobilePage.locator(".toast-stack .toast").first();
+  await mobileValidationToast.waitFor();
+  assert(
+    /Перевір поля форми перед відправкою/.test(await mobileValidationToast.innerText()),
+    "Invalid mobile form submission did not provide a clear status message."
+  );
+  await mobilePage.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  });
+  const mobileToastClearance = await mobilePage.evaluate(() => {
+    const toast = document.querySelector(".toast-stack")?.getBoundingClientRect();
+    const targets = [".mobile-cta", ".scroll-top-button", ".bulk-toolbar-floating"]
+      .map((selector) => document.querySelector(selector))
+      .filter((element) => element && getComputedStyle(element).display !== "none")
+      .map((element) => ({
+        selector: element.className,
+        rect: element.getBoundingClientRect()
+      }));
+    return {
+      toast: toast && { top: toast.top, right: toast.right, bottom: toast.bottom, left: toast.left },
+      intersections: targets.filter(({ rect }) =>
+        toast && Math.min(toast.right, rect.right) > Math.max(toast.left, rect.left) &&
+        Math.min(toast.bottom, rect.bottom) > Math.max(toast.top, rect.top)
+      ).map(({ selector }) => selector)
+    };
+  });
+  assert(
+    mobileToastClearance.intersections.length === 0,
+    `Mobile notifications overlap fixed actions: ${mobileToastClearance.intersections.join(", ")}.`
+  );
   await mobileContext.close();
 
   const cookie = await loginAdminCookie();
@@ -1801,6 +1835,142 @@ async function runAdminChecks(browser) {
   await page.unroute("**/api/admin/login");
   await page.waitForURL(/\/admin\/dashboard/);
   await page.getByText("Огляд").first().waitFor();
+
+  const adminResponsivePages = [
+    ["dashboard", "Огляд"],
+    ["products", "Товари"],
+    ["categories", "Категорії"],
+    ["faqs", "FAQ"],
+    ["news", "Новини"],
+    ["reviews", "Відгуки"],
+    ["leads", "Заявки"],
+    ["settings", "Налаштування"]
+  ];
+  const adminResponsiveWidths = [320, 375, 390, 768, 1024, 1440, 1920];
+  const adminPageResponsiveAudit = [];
+
+  for (const [route, heading] of adminResponsivePages) {
+    await page.goto(`${baseUrl}/admin/${route}`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("heading", { name: heading, exact: true }).first().waitFor({ timeout: 15000 });
+
+    for (const width of adminResponsiveWidths) {
+      await page.setViewportSize({ width, height: 900 });
+      const layout = await page.evaluate(() => {
+        const textClips = [...document.querySelectorAll("body *")]
+          .filter((element) => {
+            const rect = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            return rect.width > 0 && rect.height > 0 && element.children.length === 0 &&
+              Boolean(element.textContent?.trim()) && !(Number(style.webkitLineClamp) > 0) &&
+              !element.closest(".admin-table") &&
+              ((["hidden", "clip"].includes(style.overflowX) && element.scrollWidth > element.clientWidth + 2) ||
+                (["hidden", "clip"].includes(style.overflowY) && element.scrollHeight > element.clientHeight + 2));
+          })
+          .map((element) => element.textContent.trim().slice(0, 60));
+        const controlsOutsideViewport = [...document.querySelectorAll("a, button, input, select, textarea")]
+          .filter((element) => {
+            const rect = element.getBoundingClientRect();
+            return getComputedStyle(element).display !== "none" && rect.width > 0 &&
+              !element.closest(".admin-table") &&
+              (rect.left < -1 || rect.right > window.innerWidth + 1);
+          })
+          .map((element) => element.textContent.trim().slice(0, 50) || element.tagName);
+        const overflowElements = [...document.querySelectorAll("body *")]
+          .map((element) => ({
+            element,
+            rect: element.getBoundingClientRect()
+          }))
+          .filter(({ element, rect }) => rect.width > 0 && rect.right > window.innerWidth + 2 &&
+            !element.closest(".admin-table"))
+          .sort((left, right) => right.rect.right - left.rect.right)
+          .slice(0, 8)
+          .map(({ element, rect }) => ({
+            selector: `${element.tagName.toLowerCase()}.${String(element.className).replace(/\s+/g, ".")}`,
+            left: Math.round(rect.left),
+            right: Math.round(rect.right),
+            width: Math.round(rect.width),
+            scrollWidth: element.scrollWidth,
+            clientWidth: element.clientWidth
+          }));
+        const narrowActionButtons = [...document.querySelectorAll(".admin-table-actions button")]
+          .filter((element) => {
+            const rect = element.getBoundingClientRect();
+            const label = element.innerText.trim();
+            return /^(Редагувати|Видалити|Промодерувати|Вимкнути|Активувати|Скопіювати контакт)$/u.test(label) &&
+              getComputedStyle(element).display !== "none" && rect.width > 0 && rect.width < 84;
+          })
+          .map((element) => element.innerText.trim());
+        const overlappingGroups = [];
+        for (const selector of [
+          ".admin-mobile-bar", ".admin-section-head", ".admin-form-actions", ".editor-toolbar",
+          ".admin-card-head", ".admin-list-head", ".catalog-toolbar", ".toolbar-grid",
+          ".toolbar-grid-wide", ".admin-two-column"
+        ]) {
+          for (const group of document.querySelectorAll(selector)) {
+            const items = [...group.children].filter((element) => {
+              const rect = element.getBoundingClientRect();
+              return getComputedStyle(element).display !== "none" && rect.width > 0 && rect.height > 0;
+            });
+            for (let index = 0; index < items.length; index += 1) {
+              for (let otherIndex = index + 1; otherIndex < items.length; otherIndex += 1) {
+                const first = items[index].getBoundingClientRect();
+                const second = items[otherIndex].getBoundingClientRect();
+                if (
+                  Math.min(first.right, second.right) - Math.max(first.left, second.left) > 2 &&
+                  Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top) > 2
+                ) {
+                  overlappingGroups.push(selector);
+                }
+              }
+            }
+          }
+        }
+        return {
+          documentWidth: document.documentElement.scrollWidth,
+          textClips,
+          controlsOutsideViewport,
+          overflowElements,
+          narrowActionButtons,
+          overlappingGroups,
+          mobileNavigationVisible: getComputedStyle(document.querySelector(".admin-menu-toggle")).display !== "none",
+          desktopNavigationVisible: getComputedStyle(document.querySelector(".admin-sidebar")).display !== "none"
+        };
+      });
+
+      assert(layout.documentWidth <= width + 1,
+        `Admin ${route} overflows horizontally at ${width}px: ${layout.documentWidth}px; ${JSON.stringify(layout.overflowElements)}.`);
+      assert(layout.textClips.length === 0, `Admin ${route} clips text at ${width}px: ${layout.textClips.join(" | ")}`);
+      assert(layout.controlsOutsideViewport.length === 0,
+        `Admin ${route} pushes controls outside ${width}px: ${layout.controlsOutsideViewport.join(" | ")}`);
+      assert(layout.narrowActionButtons.length === 0,
+        `Admin ${route} action labels are squeezed at ${width}px: ${layout.narrowActionButtons.join(" | ")}`);
+      assert(layout.overlappingGroups.length === 0,
+        `Admin ${route} has overlapping layout groups at ${width}px: ${layout.overlappingGroups.join(", ")}`);
+      assert(layout.mobileNavigationVisible === (width <= 980),
+        `Admin ${route} mobile navigation has the wrong state at ${width}px.`);
+      assert(layout.desktopNavigationVisible === (width > 980),
+        `Admin ${route} desktop navigation has the wrong state at ${width}px.`);
+
+      if (route === "reviews" && width === 390) {
+        await page.waitForTimeout(100);
+        assert(
+          (await page.locator(".admin-mobile-copy .admin-unsaved-pill").count()) === 0,
+          "The untouched new-review form should not be marked as unsaved."
+        );
+      }
+
+      if (width === 390 || width === 1440 || width === 1920) {
+        await page.screenshot({ path: join(outputDir, `admin-${route}-${width}.png`) });
+      }
+      if (route === "products" && width === 1024) {
+        await page.screenshot({ path: join(outputDir, "admin-products-1024.png") });
+      }
+      adminPageResponsiveAudit.push(`${route}:${width}`);
+    }
+  }
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  await page.goto(`${baseUrl}/admin/dashboard`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("heading", { name: "Огляд", exact: true }).first().waitFor({ timeout: 15000 });
 
   const navTargets = [
     { label: "Товари", heading: "Товари" },
@@ -1958,6 +2128,42 @@ async function runAdminChecks(browser) {
   await page.waitForURL(/\/admin\/login/, { timeout: 30000 });
   await page.unroute("**/api/admin/logout");
   await desktopContext.close();
+
+  const loginContext = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+    extraHTTPHeaders: {
+      "ngrok-skip-browser-warning": "true"
+    }
+  });
+  const loginPage = await loginContext.newPage();
+  await loginPage.goto(`${baseUrl}/admin/login`, { waitUntil: "networkidle" });
+  await loginPage.getByRole("heading", { name: "Вхід в адмін-панель" }).waitFor({ timeout: 15000 });
+  const loginResponsiveAudit = [];
+  for (const width of adminResponsiveWidths) {
+    await loginPage.setViewportSize({ width, height: 900 });
+    const layout = await loginPage.evaluate(() => ({
+      documentWidth: document.documentElement.scrollWidth,
+      card: document.querySelector(".auth-card")?.getBoundingClientRect().toJSON(),
+      controlsOutsideViewport: [...document.querySelectorAll("a, button, input, select, textarea")]
+        .filter((element) => {
+          const rect = element.getBoundingClientRect();
+          return getComputedStyle(element).display !== "none" && rect.width > 0 &&
+            (rect.left < -1 || rect.right > window.innerWidth + 1);
+        })
+        .map((element) => element.textContent.trim().slice(0, 50) || element.tagName)
+    }));
+    assert(layout.documentWidth <= width + 1,
+      `Admin login overflows horizontally at ${width}px: ${layout.documentWidth}px.`);
+    assert(layout.card && layout.card.left >= -1 && layout.card.right <= width + 1,
+      `Admin login card is clipped at ${width}px.`);
+    assert(layout.controlsOutsideViewport.length === 0,
+      `Admin login has off-screen controls at ${width}px: ${layout.controlsOutsideViewport.join(" | ")}`);
+    if (width === 390 || width === 1440) {
+      await loginPage.screenshot({ path: join(outputDir, `admin-login-${width}.png`) });
+    }
+    loginResponsiveAudit.push(width);
+  }
+  await loginContext.close();
 
   const mobileContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -2161,7 +2367,13 @@ async function runAdminChecks(browser) {
   await mobilePage.waitForURL(/\/admin\/login/, { timeout: 15000 });
   await mobileContext.close();
 
-  return { adminShot, adminMobileShot, adminResponsiveAudit };
+  return {
+    adminShot,
+    adminMobileShot,
+    adminResponsiveAudit,
+    adminPageResponsiveAudit,
+    loginResponsiveAudit
+  };
 }
 
 async function main() {

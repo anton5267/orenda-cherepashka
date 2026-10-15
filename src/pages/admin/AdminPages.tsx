@@ -544,7 +544,7 @@ function createEmptyReviewDraft(): ReviewDraft {
     sortOrder: 0,
     isActive: true,
     isModerated: true,
-    createdAt: new Date().toISOString()
+    createdAt: ""
   };
 }
 

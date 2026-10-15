@@ -12,7 +12,11 @@ type ToastItem = {
   id: string;
   message: string;
   kind: ToastKind;
+  expiresAt: number;
 };
+
+const TOAST_DURATION_MS = 4200;
+const MAX_VISIBLE_TOASTS = 3;
 
 const ToastContext = createContext<{
   pushToast: (message: string, kind?: ToastKind) => void;
@@ -26,22 +30,28 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const nextExpiry = Math.min(...items.map((item) => item.expiresAt));
     const timer = window.setTimeout(() => {
-      setItems((current) => current.slice(1));
-    }, 4200);
+      const now = Date.now();
+      setItems((current) => current.filter((item) => item.expiresAt > now));
+    }, Math.max(0, nextExpiry - Date.now()));
 
     return () => window.clearTimeout(timer);
   }, [items]);
 
   const pushToast = (message: string, kind: ToastKind = "info") => {
+    const now = Date.now();
+    const nextItem = {
+      id: window.crypto.randomUUID(),
+      message,
+      kind,
+      expiresAt: now + TOAST_DURATION_MS
+    };
+
     setItems((current) => [
-      ...current,
-      {
-        id: window.crypto.randomUUID(),
-        message,
-        kind
-      }
-    ]);
+      ...current.filter((item) => item.message !== message || item.kind !== kind),
+      nextItem
+    ].slice(-MAX_VISIBLE_TOASTS));
   };
 
   return (

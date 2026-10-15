@@ -1922,21 +1922,27 @@ code {
 
 .toast-stack {
   position: fixed;
-  right: 18px;
-  bottom: 18px;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
   z-index: 120;
   display: grid;
   gap: 10px;
-  max-width: min(380px, calc(100vw - 24px));
+  width: min(380px, calc(100vw - 24px));
+  pointer-events: none;
 }
 
 .toast {
+  max-height: min(30vh, 220px);
+  overflow: auto;
+  overflow-wrap: anywhere;
+  overscroll-behavior: contain;
   padding: 14px 16px;
   border-radius: 18px;
   border: 1px solid var(--line);
   background: var(--surface-strong);
   box-shadow: var(--shadow-md);
   backdrop-filter: blur(18px);
+  pointer-events: none;
 }
 
 .toast-success {
@@ -3048,7 +3054,16 @@ textarea.is-invalid {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 16px;
+}
+
+.admin-table-actions {
+  flex: 0 0 auto;
+}
+
+.admin-table-actions > * {
+  white-space: nowrap;
 }
 
 .admin-entity {
@@ -5804,6 +5819,12 @@ p {
   }
 }
 
+@media (pointer: coarse) {
+  .filter-pill {
+    min-height: 48px;
+  }
+}
+
 /* Keep paint and motion costs low on narrow, touch-first devices. */
 @media (max-width: 760px) {
   .hero-blur {
@@ -5836,6 +5857,63 @@ p {
   .reveal {
     transform: none;
     transition: opacity 160ms ease;
+  }
+
+  .toast-stack {
+    right: max(12px, env(safe-area-inset-right));
+    top: calc(112px + env(safe-area-inset-top));
+    bottom: auto;
+    left: max(12px, env(safe-area-inset-left));
+    width: auto;
+    max-width: 380px;
+    margin-inline: auto;
+    gap: 8px;
+  }
+
+  .toast {
+    max-height: min(22vh, 160px);
+    padding: 12px 14px;
+    border-radius: 16px;
+  }
+
+  .toast-stack > .toast:not(:last-child) {
+    display: none;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 860px) {
+  .toast-stack {
+    top: auto;
+  }
+
+  body:has(.bulk-toolbar-floating) .toast-stack {
+    bottom: calc(230px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (min-width: 981px) and (max-width: 1599px) {
+  .admin-two-column {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sticky-card {
+    position: static;
+  }
+}
+
+@media (min-width: 981px) and (max-width: 1599px) {
+  .admin-toolbar.toolbar-grid-wide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1600px) {
+  .admin-toolbar.toolbar-grid-wide {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-toolbar.toolbar-grid-wide > .toolbar-field-grow {
+    grid-column: span 2;
   }
 }
 
