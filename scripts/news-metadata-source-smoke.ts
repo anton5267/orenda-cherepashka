@@ -27,6 +27,7 @@ const inactive = { ...channelItem, id: "inactive-news", isActive: false };
 const storedItem = { ...channelItem, id: "manual-news", sourceType: "manual" as const, sourceUrl: undefined, sourceMessageId: undefined };
 const requests: string[] = [];
 let requestHeaders: Headers | undefined;
+let retryAttempts = 0;
 const live = await loadNewsForMetadata({
   supabaseUrl: "https://orenda-project.supabase.co",
   publishableKey: "sb_publishable_orenda_test",
@@ -35,13 +36,18 @@ const live = await loadNewsForMetadata({
     const url = new URL(String(input));
     requests.push(url.searchParams.get("path") ?? "");
     requestHeaders = new Headers(init?.headers);
+    if (url.searchParams.get("path") === "/api/news" && retryAttempts === 0) {
+      retryAttempts += 1;
+      throw new TypeError("temporary connection reset");
+    }
     return new Response(JSON.stringify(url.searchParams.get("path") === "/api/news" ? [storedItem, inactive] : []), {
       status: 200,
       headers: { "Content-Type": "application/json" }
     });
   }
 });
-assert.deepEqual(requests.sort(), ["/api/news", "/api/news/excluded"]);
+assert.deepEqual(requests.sort(), ["/api/news", "/api/news", "/api/news/excluded"]);
+assert.equal(retryAttempts, 1, "A transient news API connection reset should be retried.");
 assert.equal(requestHeaders?.get("apikey"), "sb_publishable_orenda_test");
 assert.equal(requestHeaders?.get("Authorization"), null);
 assert(live.some((item) => item.id === "manual-news"));

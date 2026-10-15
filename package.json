@@ -25,7 +25,7 @@
     "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
     "dev:client": "vite",
     "dev:server": "tsx watch server/index.ts",
-    "ci:verify": "npm run typecheck && npm run self-qa:catalog-prices && npm run self-qa:news-dates && npm run self-qa:news-merge && npm run self-qa:news-metadata && npm run self-qa:supabase-seed && npm run self-qa:supabase-api-keys && npm run self-qa:product-metadata && npm run self-qa:price-format && npm run build && npm run self-qa:telegram-webhook-config && npm run self-qa:rate-limits && npm run self-qa:backup && npm run self-qa:catalog-migration && npm run self-qa:local && npm run build:pages && npm run self-qa:pages && npm run self-qa:pages-api && npm run self-qa:cloudflare",
+    "ci:verify": "npm run typecheck && npm run self-qa:catalog-prices && npm run self-qa:news-dates && npm run self-qa:news-merge && npm run self-qa:telegram-public-feed && npm run self-qa:news-metadata && npm run self-qa:supabase-seed && npm run self-qa:supabase-api-keys && npm run self-qa:product-metadata && npm run self-qa:price-format && npm run build && npm run self-qa:telegram-webhook-config && npm run self-qa:rate-limits && npm run self-qa:backup && npm run self-qa:catalog-migration && npm run self-qa:local && npm run build:pages && npm run self-qa:pages && npm run self-qa:pages-api && npm run self-qa:cloudflare",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "build": "npm run build:client && npm run build:server",
     "build:client": "tsc -p tsconfig.json --noEmit && vite build",
@@ -42,6 +42,7 @@
     "self-qa:telegram-webhook-config": "node scripts/telegram-webhook-config-smoke.mjs",
     "self-qa:news-dates": "tsx scripts/news-date-smoke.ts",
     "self-qa:news-merge": "tsx scripts/news-merge-smoke.ts",
+    "self-qa:telegram-public-feed": "tsx scripts/telegram-public-feed-smoke.ts",
     "self-qa:news-metadata": "tsx scripts/news-metadata-source-smoke.ts",
     "self-qa:supabase-seed": "tsx scripts/supabase-seed-smoke.ts",
     "self-qa:supabase-api-keys": "tsx scripts/supabase-api-key-headers-smoke.ts",
@@ -53,7 +54,8 @@
     "self-qa:pages-api": "node scripts/pages-api-self-qa.mjs",
     "self-qa:cloudflare": "node scripts/cloudflare-self-qa.mjs",
     "self-qa:local": "node scripts/run-local-self-qa.mjs",
-    "supabase:import-content": "tsx scripts/import-supabase-content.ts"
+    "supabase:import-content": "tsx scripts/import-supabase-content.ts",
+    "supabase:export-content-sql": "tsx scripts/export-supabase-content-sql.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.3",

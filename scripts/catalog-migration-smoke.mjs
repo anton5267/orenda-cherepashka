@@ -27,8 +27,24 @@ try {
   openStore();
   const db = new Database(databasePath);
   db.prepare("DELETE FROM app_migrations WHERE id = ?").run("catalog-prices-v1");
+  db.prepare("DELETE FROM app_migrations WHERE id = ?").run("restricted-openai-offers-v1");
   db.prepare("UPDATE products SET name = ?, is_active = 0 WHERE id = ?")
     .run("Old custom title", "grok-super");
+  db.prepare("UPDATE products SET is_active = 1 WHERE id LIKE 'chatgpt-%'").run();
+  db.prepare("UPDATE pricing_options SET is_active = 1 WHERE product_id LIKE 'chatgpt-%'").run();
+  db.prepare(
+    `INSERT INTO products (
+       id, name, slug, category_id, summary, details_json, logo,
+       is_hot, is_active, sort_order, updated_at
+     ) VALUES ('chatgpt-plus-personal', 'Legacy ChatGPT offer', 'chatgpt-plus-personal',
+       'cat-ai', 'Legacy offer must stay unpublished', '[]', '', 0, 1, 998, CURRENT_TIMESTAMP)`
+  ).run();
+  db.prepare(
+    `INSERT INTO pricing_options (
+       id, product_id, label, price, currency, compare_at, sort_order, is_active
+     ) VALUES ('chatgpt-plus-personal-plan-1', 'chatgpt-plus-personal',
+       'Legacy plan', 250, 'UAH', NULL, 1, 1)`
+  ).run();
   db.prepare("UPDATE pricing_options SET price = ?, label = ?, is_active = 0 WHERE id = ?")
     .run(9999, "Old price", "grok-super-plan-2");
   db.prepare(
@@ -55,7 +71,13 @@ try {
   );
   assert.ok(grok.pricingOptions.some((plan) => plan.id === "legacy-custom-plan" && !plan.isActive));
   assert.ok(products.some((product) => product.id === "admin-custom-product"));
-  console.log("Catalog migration smoke test passed: canonical prices repaired, admin products retained.");
+  const restrictedOpenAi = products.filter((product) => product.id.startsWith("chatgpt-"));
+  assert.equal(restrictedOpenAi.length, 6, "Expected five seeded offers and one legacy ChatGPT offer.");
+  assert.ok(
+    restrictedOpenAi.every((product) => !product.isActive && product.pricingOptions.every((plan) => !plan.isActive)),
+    "Restricted ChatGPT offers and their prices must remain unpublished after migration."
+  );
+  console.log("Catalog migration smoke test passed: admin availability retained except explicitly restricted offers.");
 } finally {
   const resolvedRoot = resolve(temporaryRoot);
   if (basename(resolvedRoot).startsWith("orenda-catalog-migration-")) {

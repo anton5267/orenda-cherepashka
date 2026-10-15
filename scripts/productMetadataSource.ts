@@ -1,6 +1,7 @@
 import { seedProducts } from "../shared/seedData.js";
 import type { Product, PricingOption } from "../shared/models.js";
 import { createSupabaseApiHeaders } from "../supabase/functions/_shared/supabaseApiKeyHeaders.js";
+import { fetchWithNetworkRetries } from "./liveMetadataFetch.js";
 
 export type ProductMetadataRecord = Pick<Product, "name" | "slug" | "summary" | "logo" | "isActive" | "pricingOptions">;
 type MetadataPrice = Pick<PricingOption, "label" | "price" | "currency" | "sortOrder" | "isActive">;
@@ -70,7 +71,7 @@ export async function loadProductsForMetadata(options: {
 
   let response: Response;
   try {
-    response = await (options.fetcher ?? fetch)(endpoint, {
+    response = await fetchWithNetworkRetries(options.fetcher ?? fetch, endpoint, {
       method: "GET",
       headers,
       signal: controller.signal,

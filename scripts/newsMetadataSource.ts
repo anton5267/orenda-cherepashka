@@ -2,6 +2,7 @@ import { seedNews } from "../shared/seedData.js";
 import type { NewsItem } from "../shared/models.js";
 import { getTrustedTelegramSourceUrl, mergeTelegramNews } from "../src/newsFeed.js";
 import { createSupabaseApiHeaders } from "../supabase/functions/_shared/supabaseApiKeyHeaders.js";
+import { fetchWithNetworkRetries } from "./liveMetadataFetch.js";
 
 export type NewsMetadataRecord = Pick<
   NewsItem,
@@ -94,7 +95,7 @@ export async function loadNewsForMetadata(options: {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 20000);
     try {
-      const response = await (options.fetcher ?? fetch)(endpoint, {
+      const response = await fetchWithNetworkRetries(options.fetcher ?? fetch, endpoint, {
         method: "GET",
         headers,
         signal: controller.signal,
@@ -110,10 +111,8 @@ export async function loadNewsForMetadata(options: {
     }
   };
 
-  const [storedBody, excludedBody] = await Promise.all([
-    requestJson("/api/news"),
-    requestJson("/api/news/excluded")
-  ]);
+  const storedBody = await requestJson("/api/news");
+  const excludedBody = await requestJson("/api/news/excluded");
   const storedNews = validateActiveNews(storedBody, "Supabase news endpoint");
   const excludedSources = parseExcludedSources(excludedBody);
   const merged = mergeTelegramNews(storedNews, channelItems, excludedSources) as NewsMetadataRecord[];

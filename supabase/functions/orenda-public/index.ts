@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import { errorMessage, getApiPath, httpError, jsonResponse, requiredEnv } from "../_shared/http.ts";
-import { createSupabaseApiKeyFetch } from "../_shared/supabaseApiKeyHeaders.ts";
+import { createSupabaseApiKeyFetch, readSupabaseSecretKey } from "../_shared/supabaseApiKeyHeaders.ts";
 
 type JsonObject = Record<string, unknown>;
 type Product = {
@@ -17,8 +17,24 @@ type Product = {
   }>;
 };
 
+type PublicTelegramNewsItem = {
+  id: string;
+  title: string;
+  dateLabel: string;
+  content: string;
+  sortOrder: number;
+  isActive: true;
+  sourceType: "telegram";
+  sourceUrl: string;
+  sourceMessageId: number;
+  publishedAt: string;
+  updatedAt: string;
+};
+
+let telegramFeedCache: { expiresAt: number; items: PublicTelegramNewsItem[] } | null = null;
+
 function serviceClient() {
-  const key = Deno.env.get("SUPABASE_SECRET_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const key = readSupabaseSecretKey((name) => Deno.env.get(name));
   if (!key) throw new Error("Missing SUPABASE_SECRET_KEY function secret");
   return createClient(requiredEnv("SUPABASE_URL"), key, {
     global: { fetch: createSupabaseApiKeyFetch(key) },
@@ -50,13 +66,13 @@ function optionalUtm(value: unknown): string | null {
   return value.trim() || null;
 }
 
-async function hashClientKey(purpose: string, request: Request): Promise<string> {
+async function hashClientKey(secret: string, purpose: string, request: Request): Promise<string> {
   const clientIp = request.headers.get("x-real-ip") ?? request.headers.get("x-forwarded-for") ?? "unknown";
   const ip = clientIp.split(",")[0].trim().slice(0, 100) || "unknown";
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(`${requiredEnv("RATE_LIMIT_HASH_SECRET")}:${purpose}:${ip}`)
+  const hmacKey = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
   );
+  const digest = await crypto.subtle.sign("HMAC", hmacKey, new TextEncoder().encode(`${purpose}:${ip}`));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
@@ -67,8 +83,10 @@ async function checkRateLimit(
   max: number,
   seconds: number
 ) {
+  const secretKey = readSupabaseSecretKey((name) => Deno.env.get(name));
+  if (!secretKey) throw new Error("Missing Supabase secret API key function environment variable");
   const { data, error } = await client.rpc("consume_lead_rate_limit", {
-    p_key_hash: await hashClientKey(purpose, request),
+    p_key_hash: await hashClientKey(secretKey, purpose, request),
     p_max_requests: max,
     p_window_seconds: seconds
   });
@@ -82,6 +100,96 @@ async function readPublicContent(client: ReturnType<typeof serviceClient>, kind:
   const { data, error } = kind === "review" ? await query.eq("is_moderated", true) : await query;
   if (error) throw error;
   return (data ?? []).map((row) => ({ ...row.payload, updatedAt: row.updated_at }));
+}
+
+function decodeTelegramEntities(value: string): string {
+  return value
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#(\d+);/g, (match, digits: string) => {
+      const point = Number(digits);
+      return Number.isInteger(point) && point >= 0 && point <= 0x10ffff ? String.fromCodePoint(point) : match;
+    })
+    .replace(/&#x([\da-f]+);/gi, (match, digits: string) => {
+      const point = parseInt(digits, 16);
+      return Number.isInteger(point) && point >= 0 && point <= 0x10ffff ? String.fromCodePoint(point) : match;
+    });
+}
+
+function parseTelegramPublicHtml(html: string): PublicTelegramNewsItem[] {
+  const channel = "arenda_cherepashka";
+  const starts = [...html.matchAll(/<div\b[^>]*class="[^"]*\btgme_widget_message_wrap\b[^"]*"[^>]*>/g)];
+  const seen = new Set<number>();
+  const items: PublicTelegramNewsItem[] = [];
+
+  for (let index = 0; index < starts.length; index += 1) {
+    const start = starts[index].index;
+    if (start === undefined) continue;
+    const block = html.slice(start, starts[index + 1]?.index ?? html.length);
+    const post = block.match(new RegExp(`data-post="${channel}/(\\d+)"`));
+    const textStart = block.search(/<div\b[^>]*class="[^"]*\btgme_widget_message_text\b[^"]*"[^>]*>/i);
+    if (!post || textStart < 0) continue;
+
+    const sourceMessageId = Number(post[1]);
+    if (!Number.isSafeInteger(sourceMessageId) || seen.has(sourceMessageId)) continue;
+    seen.add(sourceMessageId);
+    const markup = block.slice(textStart);
+    const openEnd = markup.indexOf(">");
+    const closeAt = markup.indexOf("</div>", openEnd + 1);
+    if (openEnd < 0 || closeAt < 0) continue;
+    const message = decodeTelegramEntities(markup.slice(openEnd + 1, closeAt)
+      .replace(/<br\s*\/?\s*>/gi, "\n").replace(/<[^>]*>/g, ""))
+      .replace(/[\t\f\v ]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n")
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").trim();
+    if (!message) continue;
+    const [firstLine, ...rest] = message.split("\n").map((line) => line.trim()).filter(Boolean);
+    if (!firstLine) continue;
+    const time = block.match(/<time\b[^>]*datetime="([^"]+)"/i)?.[1];
+    const timestamp = time ? Date.parse(time) : Number.NaN;
+    const publishedAt = Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : new Date().toISOString();
+    const title = firstLine.length > 110 ? `${firstLine.slice(0, 107).trimEnd()}…` : firstLine;
+    const body = [firstLine.length > 110 ? firstLine : "", ...rest].filter(Boolean).join("\n").trim();
+    const fullContent = body || message;
+    items.push({
+      id: `telegram-${sourceMessageId}`, title,
+      dateLabel: new Intl.DateTimeFormat("uk-UA", {
+        day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Kyiv"
+      }).format(new Date(publishedAt)),
+      content: fullContent.length > 900 ? `${fullContent.slice(0, 897).trimEnd()}…` : fullContent,
+      sortOrder: 0, isActive: true, sourceType: "telegram",
+      sourceUrl: `https://t.me/${channel}/${sourceMessageId}`, sourceMessageId, publishedAt, updatedAt: publishedAt
+    });
+  }
+
+  return items.sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt))
+    .slice(0, 6).map((item, sortOrder) => ({ ...item, sortOrder }));
+}
+
+async function fetchPublicTelegramFeed(): Promise<PublicTelegramNewsItem[]> {
+  const response = await fetch("https://t.me/s/arenda_cherepashka", {
+    headers: { "user-agent": "OrendaCherepashka-NewsFeed/1.0" },
+    signal: AbortSignal.timeout(8000)
+  });
+  if (!response.ok) throw new Error(`Telegram channel returned HTTP ${response.status}`);
+  const items = parseTelegramPublicHtml(await response.text());
+  if (!items.length) throw new Error("No public Telegram posts were found");
+  return items;
+}
+
+async function readFreshTelegramNews() {
+  if (telegramFeedCache && telegramFeedCache.expiresAt > Date.now()) return telegramFeedCache.items;
+  try {
+    const items = await fetchPublicTelegramFeed();
+    telegramFeedCache = { items, expiresAt: Date.now() + 10 * 60 * 1000 };
+    return items;
+  } catch (error) {
+    console.error("Live Telegram news refresh failed:", errorMessage(error));
+    return telegramFeedCache?.items ?? [];
+  }
 }
 
 function validNeededBy(value: unknown): string | null {
@@ -264,7 +372,16 @@ Deno.serve(async (request) => {
       "/api/news": "news", "/api/reviews": "review"
     };
     if (request.method === "GET" && publicKinds[path]) {
-      return jsonResponse(request, await readPublicContent(client, publicKinds[path]));
+      const content = await readPublicContent(client, publicKinds[path]);
+      if (path === "/api/news" && (Deno.env.get("TELEGRAM_AUTO_PUBLISH") ?? "true").toLowerCase() === "true") {
+        const { data: settings, error: settingsError } = await client.from("site_settings")
+          .select("data").eq("singleton", true).maybeSingle();
+        if (settingsError) throw settingsError;
+        if (settings?.data?.telegramAutoPublish !== false) {
+          return jsonResponse(request, [...content, ...await readFreshTelegramNews()]);
+        }
+      }
+      return jsonResponse(request, content);
     }
     if (request.method === "GET" && path === "/api/news/excluded") {
       const { data, error } = await client.from("site_content")

@@ -1,5 +1,20 @@
 import assert from "node:assert/strict";
-import { createSupabaseApiHeaders, createSupabaseApiKeyFetch } from "../supabase/functions/_shared/supabaseApiKeyHeaders";
+import {
+  createSupabaseApiHeaders,
+  createSupabaseApiKeyFetch,
+  readSupabasePublishableKey,
+  readSupabaseSecretKey
+} from "../supabase/functions/_shared/supabaseApiKeyHeaders";
+
+const env = new Map<string, string>([
+  ["SUPABASE_SECRET_KEYS", JSON.stringify({ default: "sb_secret_new_default" })],
+  ["SUPABASE_PUBLISHABLE_KEYS", JSON.stringify({ default: "sb_publishable_new_default" })]
+]);
+assert.equal(readSupabaseSecretKey((name) => env.get(name)), "sb_secret_new_default");
+assert.equal(readSupabasePublishableKey((name) => env.get(name)), "sb_publishable_new_default");
+const legacyEnv = new Map([["SUPABASE_SERVICE_ROLE_KEY", "legacy-service"], ["SUPABASE_ANON_KEY", "legacy-anon"]]);
+assert.equal(readSupabaseSecretKey((name) => legacyEnv.get(name)), "legacy-service");
+assert.equal(readSupabasePublishableKey((name) => legacyEnv.get(name)), "legacy-anon");
 
 const publishableKey = "sb_publishable_orenda_test";
 const anonymousHeaders = createSupabaseApiHeaders(publishableKey, null, {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { loadProductsForMetadata } from "./productMetadataSource.js";
 
 const seedProducts = await loadProductsForMetadata({});
-assert.equal(seedProducts.length, 35, "Local builds must retain the canonical 35-product fallback.");
+assert.equal(seedProducts.length, 30, "Local public builds must exclude the five unpublished OpenAI offers.");
 
 const selected = seedProducts[0];
 const inactive = { ...selected, id: "inactive", slug: "inactive-item", isActive: false };
@@ -24,6 +24,19 @@ assert.equal(liveProducts.length, 1, "Inactive products must not be emitted into
 assert.equal(new URL(requestedUrl).searchParams.get("path"), "/api/products");
 assert.equal(requestHeaders?.get("apikey"), "sb_publishable_orenda_test");
 assert.equal(requestHeaders?.get("Authorization"), null, "The build must not send an opaque key as Bearer auth.");
+
+let retryAttempts = 0;
+const retryProducts = await loadProductsForMetadata({
+  supabaseUrl: "https://orenda-project.supabase.co",
+  publishableKey: "sb_publishable_orenda_test",
+  fetcher: async () => {
+    retryAttempts += 1;
+    if (retryAttempts === 1) throw new TypeError("temporary connection reset");
+    return new Response(JSON.stringify([selected]), { status: 200 });
+  }
+});
+assert.equal(retryProducts.length, 1, "A transient network reset should recover without publishing stale metadata.");
+assert.equal(retryAttempts, 2);
 
 await assert.rejects(
   () => loadProductsForMetadata({ supabaseUrl: "https://orenda-project.supabase.co" }),

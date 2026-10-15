@@ -837,18 +837,20 @@ function migrateSeedCatalogPrices() {
     const syncProduct = db.prepare(
       `UPDATE products SET
         name = ?, slug = ?, category_id = ?, summary = ?, details_json = ?,
-        logo = CASE WHEN ? = '' THEN logo ELSE ? END, sort_order = ?, updated_at = ?
+        logo = CASE WHEN ? = '' THEN logo ELSE ? END,
+        is_active = CASE WHEN ? = 0 THEN 0 ELSE is_active END,
+        sort_order = ?, updated_at = ?
        WHERE id = ?`
     );
     const upsertPricing = db.prepare(
       `INSERT INTO pricing_options (
         id, product_id, label, price, currency, compare_at, sort_order, is_active
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         product_id = excluded.product_id, label = excluded.label,
         price = excluded.price, currency = excluded.currency,
         compare_at = excluded.compare_at, sort_order = excluded.sort_order,
-        is_active = 1`
+        is_active = excluded.is_active`
     );
 
     for (const product of seedProducts) {
@@ -873,6 +875,7 @@ function migrateSeedCatalogPrices() {
         JSON.stringify(product.details),
         product.logo,
         product.logo,
+        boolToInt(product.isActive),
         product.sortOrder,
         timestamp,
         product.id
@@ -887,7 +890,8 @@ function migrateSeedCatalogPrices() {
           option.price,
           option.currency,
           option.compareAt,
-          option.sortOrder
+          option.sortOrder,
+          boolToInt(product.isActive)
         );
         return id;
       });
@@ -898,6 +902,27 @@ function migrateSeedCatalogPrices() {
       ).run(product.id, ...pricingIds);
     }
 
+    db.prepare("INSERT INTO app_migrations (id, applied_at) VALUES (?, ?)")
+      .run(migrationId, timestamp);
+  });
+
+  applyMigration();
+}
+
+function migrateRestrictedOpenAiOffers() {
+  const migrationId = "restricted-openai-offers-v1";
+  if (db.prepare("SELECT id FROM app_migrations WHERE id = ?").get(migrationId)) {
+    return;
+  }
+
+  const timestamp = nowIso();
+  const applyMigration = db.transaction(() => {
+    db.prepare(
+      "UPDATE pricing_options SET is_active = 0 WHERE product_id IN (SELECT id FROM products WHERE id LIKE 'chatgpt-%')"
+    ).run();
+    db.prepare(
+      "UPDATE products SET is_active = 0, updated_at = ? WHERE id LIKE 'chatgpt-%'"
+    ).run(timestamp);
     db.prepare("INSERT INTO app_migrations (id, applied_at) VALUES (?, ?)")
       .run(migrationId, timestamp);
   });
@@ -1432,6 +1457,7 @@ ensureSchema();
 ensureCompatibilityMigrations();
 ensureSeed();
 migrateSeedCatalogPrices();
+migrateRestrictedOpenAiOffers();
 ensureLeadItemsBackfill();
 
 export function getSiteSettings() {

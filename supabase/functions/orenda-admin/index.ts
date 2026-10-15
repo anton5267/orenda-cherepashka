@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import { errorMessage, getApiPath, getRouteId, httpError, jsonResponse, requiredEnv } from "../_shared/http.ts";
-import { createSupabaseApiKeyFetch } from "../_shared/supabaseApiKeyHeaders.ts";
+import { createSupabaseApiKeyFetch, readSupabasePublishableKey, readSupabaseSecretKey } from "../_shared/supabaseApiKeyHeaders.ts";
 
 type JsonObject = Record<string, unknown>;
 const kindByRoute: Record<string, string> = {
@@ -8,7 +8,7 @@ const kindByRoute: Record<string, string> = {
 };
 
 function serviceClient() {
-  const key = Deno.env.get("SUPABASE_SECRET_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const key = readSupabaseSecretKey((name) => Deno.env.get(name));
   if (!key) throw new Error("Missing SUPABASE_SECRET_KEY function secret");
   return createClient(requiredEnv("SUPABASE_URL"), key, {
     global: { fetch: createSupabaseApiKeyFetch(key) },
@@ -384,7 +384,7 @@ Deno.serve(async (request) => {
     const client = serviceClient();
     const authorization = request.headers.get("authorization") ?? "";
     const token = authorization.replace(/^Bearer\s+/i, "").trim();
-    if (!token || token === (Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? "")) {
+    if (!token || token === (readSupabasePublishableKey((name) => Deno.env.get(name)) ?? "")) {
       return jsonResponse(request, { message: "Потрібна авторизація." }, 401);
     }
     const { data, error } = await client.auth.getUser(token);

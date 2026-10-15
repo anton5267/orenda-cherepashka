@@ -141,7 +141,12 @@ try {
   assert.equal(sitemapResponse.status, 200, "Static site sitemap.xml did not return HTTP 200.");
   const sitemapLocs = [...sitemapText.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1]);
   const newsSitemapLocs = sitemapLocs.filter((url) => /\/news\/[A-Za-z0-9_-]+\/$/.test(url));
-  assert.equal(sitemapLocs.length, 40 + newsSitemapLocs.length,
+  const productSitemapLocs = sitemapLocs.filter((url) => /\/p\/[A-Za-z0-9_-]+\/$/.test(url));
+  assert.equal(productSitemapLocs.length, 30,
+    "Sitemap should include each eligible product and exclude unpublished offers.");
+  assert(!productSitemapLocs.some((url) => /chatgpt|openai/i.test(url)),
+    "Sitemap must not expose unpublished OpenAI subscription offers.");
+  assert.equal(sitemapLocs.length, 5 + productSitemapLocs.length + newsSitemapLocs.length,
     "Sitemap should contain home, four legal pages, all products, and only published news articles.");
   assert(newsSitemapLocs.length > 0, "Sitemap must include published news articles.");
 
@@ -294,12 +299,12 @@ try {
   await page.locator(".product-card").first().waitFor();
   assert.equal(await page.locator(".product-card").count(), 12,
     "Pages catalog should progressively render an initial batch of 12 products.");
-  assert.match(await page.locator(".catalog-meta p").innerText(), /Показано 12 із 35/,
+  assert.match(await page.locator(".catalog-meta p").innerText(), /Показано 12 із 30/,
     "Catalog result status should announce how many products are currently shown.");
   await page.getByRole("button", { name: "Показати ще 12 позицій" }).click();
   assert.equal(await page.locator(".product-card").count(), 24,
     "The catalog load-more action did not reveal the next batch.");
-  assert.match(await page.locator(".catalog-meta p").innerText(), /Показано 24 із 35/);
+  assert.match(await page.locator(".catalog-meta p").innerText(), /Показано 24 із 30/);
   const catalogSearch = page.getByRole("searchbox", { name: "Пошук" });
   await catalogSearch.fill("Gmail");
   await page.locator(".product-card").filter({ hasText: "Gmail пошта" }).waitFor();
@@ -308,11 +313,11 @@ try {
   assert.match(await page.locator(".catalog-meta p").innerText(), /Показано 1 із 1/);
   await catalogSearch.fill("");
   await page.waitForFunction(() => document.querySelectorAll(".product-card").length === 12);
-  while ((await page.locator(".product-card").count()) < 35) {
+  while ((await page.locator(".product-card").count()) < 30) {
     await page.getByRole("button", { name: /Показати ще/ }).click();
   }
-  assert.equal(await page.locator(".product-card").count(), 35,
-    "The catalog did not allow visitors to reveal every product.");
+  assert.equal(await page.locator(".product-card").count(), 30,
+    "The public catalog did not reveal every eligible product.");
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.locator(".product-card").first().waitFor();
   assert(
@@ -370,7 +375,7 @@ try {
   );
   await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
   await page.locator("body").click({ position: { x: 4, y: 4 } });
-  while ((await page.locator(".product-card").count()) < 35) {
+  while ((await page.locator(".product-card").count()) < 30) {
     await page.getByRole("button", { name: /Показати ще/ }).click();
   }
   assert.deepEqual(externalFontRequests, [], "The page should not depend on third-party font downloads.");
@@ -506,7 +511,7 @@ try {
       "Mobile menu primary action is smaller than a comfortable touch target.");
     await touchMenu.getByRole("button", { name: "Закрити меню" }).click();
 
-    const searchInput = touchPage.getByPlaceholder("Наприклад, ChatGPT, Netflix, VPN...");
+    const searchInput = touchPage.getByPlaceholder("Наприклад, Netflix, Grok, VPN...");
     assert.equal(await searchInput.getAttribute("type"), "search",
       "Catalog search does not use a mobile-friendly search input.");
     const searchFontSize = await searchInput.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
@@ -514,7 +519,7 @@ try {
     await searchInput.focus();
     assert.equal(await touchPage.locator(".mobile-cta").evaluate((element) => getComputedStyle(element).display), "none",
       "Fixed customer actions cover the catalog input while the mobile keyboard is open.");
-    await searchInput.fill("ChatGPT");
+    await searchInput.fill("Grok");
     await touchPage.waitForTimeout(350);
     assert(await touchPage.locator(".product-card").count() > 0,
       "Mobile search did not return matching products.");
@@ -651,10 +656,10 @@ try {
   );
 
   if (apiSmokeEnabled) {
-    await page.getByPlaceholder("Наприклад, ChatGPT, Netflix, VPN...").fill("ChatGPT");
+    await page.getByPlaceholder("Наприклад, Netflix, Grok, VPN...").fill("Grok");
     await page.waitForTimeout(300);
-    const chatGptCard = page.locator(".product-card").filter({ hasText: "ChatGPT Plus" }).first();
-    await chatGptCard.getByRole("button", { name: "Замовити" }).click();
+    const grokCard = page.locator(".product-card").filter({ hasText: "Grok Super [особистий]" }).first();
+    await grokCard.getByRole("button", { name: "Замовити" }).click();
     await page.getByLabel("Ім'я").fill("Pages API QA");
     await page.getByLabel("Контакт").fill("@pages_api_qa");
     await page.getByLabel("Повідомлення").fill("Mocked Pages to API test");
@@ -867,7 +872,7 @@ try {
 
   console.log(JSON.stringify({
     ok: true,
-    productCount: 35,
+    productCount: 30,
     staticNewsStatus: feedStatus,
     expiredPromotionsMarked: true,
     productSeo: "accurate currency, package price and canonical URL",

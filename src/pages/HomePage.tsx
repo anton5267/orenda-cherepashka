@@ -377,12 +377,15 @@ export function HomePage() {
   const selectedProductParam = searchParams.get("product") ?? "";
   const selectedPlanParam = searchParams.get("plan") ?? "";
   const displaySettings = settings ?? defaultSiteSettings;
+  const publicHeroSubtitle = /chatgpt|openai/i.test(displaySettings.heroSubtitle)
+    ? "Популярні цифрові сервіси з актуальними тарифами, швидким підключенням і підтримкою."
+    : displaySettings.heroSubtitle;
 
   useEffect(() => {
     setCatalogVisibleLimit(catalogBatchSize);
   }, [activeCategory, searchTerm, sortKey]);
 
-  const totalProducts = products.length || 35;
+  const totalProducts = products.length;
   const totalCategories = categories.length || 6;
   const totalReviews = reviews.length;
   const latestTelegramPost = news
@@ -1449,7 +1452,7 @@ export function HomePage() {
                   displaySettings.heroTitle
                 )}
               </h1>
-              <p className="hero-lead">{displaySettings.heroSubtitle}</p>
+              <p className="hero-lead">{publicHeroSubtitle}</p>
               <div className="hero-actions-row">
                 <a className="primary-button" href="#catalog">
                   Переглянути каталог
@@ -1557,7 +1560,7 @@ export function HomePage() {
                       autoCapitalize="none"
                       autoCorrect="off"
                       spellCheck={false}
-                      placeholder="Наприклад, ChatGPT, Netflix, VPN..."
+                      placeholder="Наприклад, Netflix, Grok, VPN..."
                       value={searchTerm}
                       onChange={(event) =>
                         updateCatalogParams({ q: event.target.value })

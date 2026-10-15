@@ -1391,8 +1391,8 @@ code {
 .faq-index {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: 14px;
   background: rgba(14, 165, 106, 0.1);
   color: var(--brand-strong);
@@ -5883,6 +5883,8 @@ p {
   .lead-quick-pick,
   .modal-close,
   .mobile-menu-close {
+    width: 48px;
+    min-width: 48px;
     min-height: 48px;
   }
 

@@ -1556,8 +1556,8 @@ async function runPublicChecks(browser) {
 
   const heroText = await page.locator("main").innerText();
   assert(
-    heroText.includes("ChatGPT, Netflix, Spotify, VPN"),
-    "Hero subtitle did not render expected services text."
+    !heroText.includes("ChatGPT"),
+    "The public hero must not advertise an unpublished OpenAI offer."
   );
 
   const initialCatalogCards = page.locator(".product-card");
@@ -1567,7 +1567,7 @@ async function runPublicChecks(browser) {
     "Public catalog should render the first 12 items before progressive loading."
   );
   assert(
-    (await page.locator(".catalog-meta p").innerText()).includes("Показано 12 із 35"),
+    (await page.locator(".catalog-meta p").innerText()).includes("Показано 12 із 30"),
     "Catalog status did not report the first visible batch."
   );
   await page.getByRole("button", { name: "Показати ще 12 позицій" }).click();
@@ -1580,13 +1580,13 @@ async function runPublicChecks(browser) {
     "Catalog search could not find a product outside its initial rendered batch.");
   await catalogSearch.fill("");
   await page.waitForFunction(() => document.querySelectorAll(".product-card").length === 12);
-  while ((await initialCatalogCards.count()) < 35) {
+  while ((await initialCatalogCards.count()) < 30) {
     await page.getByRole("button", { name: /Показати ще/ }).click();
   }
   await initialCatalogCards.filter({ hasText: "ELEVENLABS 131K credits" }).waitFor();
   assert(
-    (await initialCatalogCards.count()) === 35,
-    "Public catalog did not allow visitors to reveal all 35 items from the seller's price list."
+    (await initialCatalogCards.count()) === 30,
+    "Public catalog should expose the 30 eligible items, keeping five OpenAI offers unpublished."
   );
   const gmailCard = initialCatalogCards.filter({ hasText: "Gmail пошта" }).first();
   assert(
@@ -1594,10 +1594,9 @@ async function runPublicChecks(browser) {
       (await gmailCard.locator(".plan-chip").filter({ hasText: "$1.70" }).count()) === 1,
     "Gmail quantity prices were not rendered in USD."
   );
-  const chatGptProCard = initialCatalogCards.filter({ hasText: "ChatGPT Pro" }).first();
   assert(
-    (await chatGptProCard.locator(".plan-chip").count()) === 4,
-    "ChatGPT Pro did not show all four Codex and multi-month price options."
+    (await initialCatalogCards.filter({ hasText: /ChatGPT/i }).count()) === 0,
+    "OpenAI subscription offers must remain absent from the public catalog."
   );
   const grokPersonalCard = initialCatalogCards.filter({ hasText: "Grok Super [особистий]" }).first();
   assert(
@@ -1632,20 +1631,20 @@ async function runPublicChecks(browser) {
     "Theme preference did not persist after reload."
   );
 
-  await page.getByPlaceholder("Наприклад, ChatGPT, Netflix, VPN...").fill("ChatGPT");
+  await page.getByPlaceholder("Наприклад, Netflix, Grok, VPN...").fill("Grok");
   await page.waitForTimeout(400);
   const productCards = page.locator(".product-card");
   const filteredCount = await productCards.count();
-  assert(filteredCount >= 1, "Catalog search returned no cards for ChatGPT.");
+  assert(filteredCount >= 1, "Catalog search returned no cards for Grok.");
 
-  const targetCard = productCards.filter({ hasText: "ChatGPT Plus" }).first();
+  const targetCard = productCards.filter({ hasText: "Grok Super [особистий]" }).first();
   await targetCard.getByRole("button", { name: "Замовити" }).click();
 
   const currentSelection = page.locator(".lead-summary-selected");
   await currentSelection.waitFor();
   const selectionText = await currentSelection.innerText();
   assert(
-    selectionText.includes("ChatGPT Plus"),
+    selectionText.includes("Grok Super [особистий]"),
     "Lead form did not receive selected product."
   );
 
@@ -1730,10 +1729,10 @@ async function runPublicChecks(browser) {
     await mobilePage.locator("#lead-form").waitFor();
   }
 
-  await mobilePage.goto(`${baseUrl}/?q=ChatGPT`, { waitUntil: "networkidle" });
+  await mobilePage.goto(`${baseUrl}/?q=Grok`, { waitUntil: "networkidle" });
   await mobilePage
     .locator(".product-card")
-    .filter({ hasText: "ChatGPT Plus" })
+    .filter({ hasText: "Grok Super [особистий]" })
     .first()
     .getByRole("button", { name: "Замовити" })
     .click();
@@ -1819,7 +1818,7 @@ async function runProductPageApiFailureRecovery(browser) {
   });
 
   try {
-    await page.goto(`${baseUrl}/p/chatgpt-pro-shared`, { waitUntil: "networkidle" });
+    await page.goto(`${baseUrl}/p/grok-super-personal`, { waitUntil: "networkidle" });
     const errorState = page.getByRole("alert");
     await errorState.getByText("Не вдалося завантажити товар").waitFor();
     assert(
@@ -1831,7 +1830,7 @@ async function runProductPageApiFailureRecovery(browser) {
       "Product API error state should offer a retry action."
     );
     await page.getByRole("button", { name: "Повторити завантаження" }).click();
-    await page.getByRole("heading", { name: /ChatGPT Pro \[спільний/ }).waitFor();
+    await page.getByRole("heading", { name: /Grok Super \[особистий/ }).waitFor();
     assert(pageErrors.length === 0, "Product API failure must not create an unhandled browser rejection.");
   } finally {
     await context.close();

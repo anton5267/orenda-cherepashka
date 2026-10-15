@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import { errorMessage, httpError, jsonResponse, requiredEnv } from "../_shared/http.ts";
-import { createSupabaseApiKeyFetch } from "../_shared/supabaseApiKeyHeaders.ts";
+import { createSupabaseApiKeyFetch, readSupabaseSecretKey } from "../_shared/supabaseApiKeyHeaders.ts";
 
 type TelegramMessage = {
   message_id: number;
@@ -11,7 +11,7 @@ type TelegramMessage = {
 };
 
 function serviceClient() {
-  const key = Deno.env.get("SUPABASE_SECRET_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const key = readSupabaseSecretKey((name) => Deno.env.get(name));
   if (!key) throw new Error("Missing SUPABASE_SECRET_KEY function secret");
   return createClient(requiredEnv("SUPABASE_URL"), key, {
     global: { fetch: createSupabaseApiKeyFetch(key) },
@@ -123,7 +123,11 @@ Deno.serve(async (request) => {
       return jsonResponse(request, { ok: true, ignored: true });
     }
     message = parseMessage(rawMessage);
-    if (String(message.chat.id) !== requiredEnv("TELEGRAM_CHANNEL_ID")) {
+    const configuredChannel = requiredEnv("TELEGRAM_CHANNEL_ID").trim();
+    const allowedChannel = configuredChannel.startsWith("@")
+      ? message.chat.username?.toLowerCase() === configuredChannel.slice(1).toLowerCase()
+      : String(message.chat.id) === configuredChannel;
+    if (!allowedChannel) {
       return jsonResponse(request, { message: "Цей Telegram-канал не дозволено." }, 403);
     }
 
