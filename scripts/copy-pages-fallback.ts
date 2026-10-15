@@ -14,6 +14,19 @@ const legalPages = [
   { slug: "refund", title: "Умови заміни та повернення" },
   { slug: "contacts", title: "Контакти продавця" }
 ];
+const adminRoutes = [
+  "/admin",
+  "/admin/login",
+  "/admin/reset-password",
+  "/admin/dashboard",
+  "/admin/products",
+  "/admin/categories",
+  "/admin/faqs",
+  "/admin/news",
+  "/admin/reviews",
+  "/admin/leads",
+  "/admin/settings"
+];
 
 const channelSnapshot = JSON.parse(await readFile(resolve("public/telegram-news.json"), "utf8")) as { items?: unknown };
 const channelItems = Array.isArray(channelSnapshot.items) ? channelSnapshot.items : [];
@@ -84,6 +97,21 @@ const homeHtml = withPageMetadata(sourceHtml, {
 
 await writeFile(indexPath, homeHtml);
 await copyFile(indexPath, resolve(distDir, "404.html"));
+
+for (const route of adminRoutes) {
+  const routeHtml = homeHtml
+    .replace(/<title>[\s\S]*?<\/title>/, "<title>Адмін-панель — Orenda Cherepashka</title>")
+    .replace(/<meta\s+name="robots"[^>]*\/>/, '<meta name="robots" content="noindex,nofollow" />')
+    .replace(/<link\s+rel="canonical"[^>]*\/>/, `<link rel="canonical" href="${escapeHtml(`${pagesBaseUrl}${route}`)}" />`);
+  const routePath = route.replace(/^\//, "");
+  const flatRoutePath = resolve(distDir, `${routePath}.html`);
+  await mkdir(dirname(flatRoutePath), { recursive: true });
+  await writeFile(flatRoutePath, routeHtml);
+
+  const directoryRoutePath = resolve(distDir, routePath);
+  await mkdir(directoryRoutePath, { recursive: true });
+  await writeFile(resolve(directoryRoutePath, "index.html"), routeHtml);
+}
 
 const productUrls: string[] = [];
 for (const product of productsForMetadata) {

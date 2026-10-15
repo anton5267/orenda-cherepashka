@@ -13,7 +13,7 @@ const publicSiteUrl = (process.env.PUBLIC_SITE_URL ?? "https://orenda-cherepashk
   .trim()
   .replace(/\/+$/, "");
 const app = express();
-app.use(routePrefix || "/", express.static(distDir));
+app.use(routePrefix || "/", express.static(distDir, { extensions: ["html"] }));
 app.use(routePrefix || "/", (_request, response) => {
   response.sendFile(resolve(distDir, "index.html"));
 });
@@ -149,6 +149,26 @@ try {
   assert.equal(sitemapLocs.length, 5 + productSitemapLocs.length + newsSitemapLocs.length,
     "Sitemap should contain home, four legal pages, all products, and only published news articles.");
   assert(newsSitemapLocs.length > 0, "Sitemap must include published news articles.");
+
+  for (const route of [
+    "/admin",
+    "/admin/login",
+    "/admin/reset-password",
+    "/admin/dashboard",
+    "/admin/products",
+    "/admin/categories",
+    "/admin/faqs",
+    "/admin/news",
+    "/admin/reviews",
+    "/admin/leads",
+    "/admin/settings"
+  ]) {
+    const routeResponse = await fetch(new URL(route.slice(1), baseUrl));
+    assert.equal(routeResponse.status, 200, `Static admin route ${route} did not return HTTP 200.`);
+    const routeHtml = await routeResponse.text();
+    assert.match(routeHtml, /<meta name="robots" content="noindex,nofollow" \/>/,
+      `Static admin route ${route} is missing noindex metadata.`);
+  }
 
   const themeContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
