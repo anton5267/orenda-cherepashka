@@ -39,23 +39,22 @@ const heroHighlight = "топові сервіси";
 
 const sectionLinks = [
   { id: "catalog", label: "Каталог" },
-  { id: "faq", label: "FAQ" },
+  { id: "faq", label: "Питання" },
   { id: "news", label: "Новини" },
-  { id: "lead-form", label: "Заявка" },
   { id: "reviews", label: "Відгуки" }
 ] as const;
 
-type SectionId = (typeof sectionLinks)[number]["id"];
+type SectionId = (typeof sectionLinks)[number]["id"] | "lead-form";
 
 const sectionDescriptions: Record<SectionId, string> = {
   catalog: "Пошук, фільтри і прямий вибір тарифу",
-  faq: "Швидкі відповіді перед замовленням",
+  faq: "Відповіді перед замовленням",
   news: "Оновлення каталогу та корисні анонси",
   "lead-form": "Заявка з фіксацією обраного плану",
   reviews: "Враження клієнтів і довіра до сервісу"
 };
 
-const heroShortcutIds = ["catalog", "lead-form", "faq", "news"] as const;
+const heroShortcutIds = ["catalog", "faq", "news", "reviews"] as const;
 
 const sortOptions = [
   { value: "popular", label: "Популярні" },
@@ -292,6 +291,10 @@ export function HomePage() {
   const { pushToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const leadRef = useRef<HTMLFormElement | null>(null);
+  const menuToggleRef = useRef<HTMLButtonElement | null>(null);
+  const headerApplyRef = useRef<HTMLAnchorElement | null>(null);
+  const mobileMenuPanelRef = useRef<HTMLDivElement | null>(null);
+  const mobileMenuWasOpenRef = useRef(false);
   const startedOnStaticPagesPathRef = useRef(
     isStaticSite && window.location.pathname.startsWith(staticSiteBasePath)
   );
@@ -657,22 +660,54 @@ export function HomePage() {
   }, [selectedProduct]);
 
   useEffect(() => {
-    document.body.classList.toggle("menu-open", menuOpen);
-
     if (!menuOpen) {
-      return () => {
-        document.body.classList.remove("menu-open");
-      };
+      document.body.classList.remove("menu-open");
+      if (mobileMenuWasOpenRef.current) {
+        mobileMenuWasOpenRef.current = false;
+        const focusTarget = window.innerWidth <= 1080 ? menuToggleRef.current : headerApplyRef.current;
+        focusTarget?.focus({ preventScroll: true });
+      }
+      return;
     }
+
+    mobileMenuWasOpenRef.current = true;
+    document.body.classList.add("menu-open");
+    const panel = mobileMenuPanelRef.current;
+    const getFocusable = () =>
+      Array.from(
+        panel?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ) ?? []
+      );
+
+    window.requestAnimationFrame(() => getFocusable()[0]?.focus({ preventScroll: true }));
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setMenuOpen(false);
+        return;
+      }
+
+      if (event.key === "Tab") {
+        const focusable = getFocusable();
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const focusIsOutsidePanel = !panel?.contains(document.activeElement);
+
+        if (!first || !last) {
+          event.preventDefault();
+        } else if (event.shiftKey && (document.activeElement === first || focusIsOutsidePanel)) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && (document.activeElement === last || focusIsOutsidePanel)) {
+          event.preventDefault();
+          first.focus();
+        }
       }
     };
 
     const handleResize = () => {
-      if (window.innerWidth > 980) {
+      if (window.innerWidth > 1080) {
         setMenuOpen(false);
       }
     };
@@ -835,8 +870,10 @@ export function HomePage() {
   }, [selectedProductId]);
 
   useEffect(() => {
-    const sections = sectionLinks
-      .map((section) => document.getElementById(section.id))
+    const sections = [
+      ...sectionLinks.map((section) => document.getElementById(section.id)),
+      document.getElementById("lead-form")
+    ]
       .filter((section): section is HTMLElement => Boolean(section));
 
     if (!sections.length) {
@@ -850,7 +887,7 @@ export function HomePage() {
           .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
 
         if (visibleEntry?.target.id) {
-          setActiveSection(visibleEntry.target.id as (typeof sectionLinks)[number]["id"]);
+          setActiveSection(visibleEntry.target.id as SectionId);
         }
       },
       {
@@ -1168,7 +1205,10 @@ export function HomePage() {
 
   return (
     <PageShell>
-      <header className={`site-header ${isScrolled ? "is-scrolled" : ""}`}>
+      <a className="skip-link" href="#top">
+        Перейти до вмісту
+      </a>
+      <header className={`site-header home-site-header ${isScrolled ? "is-scrolled" : ""}`}>
         <div className="shell">
           <div className="header-row">
             <BrandLink
@@ -1182,7 +1222,9 @@ export function HomePage() {
                 <a
                   className={activeSection === link.id ? "is-active" : ""}
                   href={`#${link.id}`}
+                  aria-current={activeSection === link.id ? "location" : undefined}
                   key={link.id}
+                  onClick={() => setActiveSection(link.id)}
                 >
                   {link.label}
                 </a>
@@ -1192,16 +1234,26 @@ export function HomePage() {
             <div className="header-actions">
               <ThemeToggle />
               <a
-                className="primary-button compact"
+                className="ghost-button compact header-telegram-link"
                 href={displaySettings.telegramContactUrl}
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 Telegram
               </a>
+              <a
+                className="primary-button compact header-apply-link"
+                href="#lead-form"
+                ref={headerApplyRef}
+                aria-current={activeSection === "lead-form" ? "location" : undefined}
+                onClick={() => setActiveSection("lead-form")}
+              >
+                Залишити заявку
+              </a>
               <button
                 className="menu-toggle"
                 type="button"
+                ref={menuToggleRef}
                 aria-expanded={menuOpen}
                 aria-controls="mobile-menu"
                 aria-label={menuOpen ? "Закрити меню" : "Відкрити меню"}
@@ -1223,10 +1275,26 @@ export function HomePage() {
               aria-label="Закрити меню"
               onClick={() => setMenuOpen(false)}
             ></button>
-            <div className="mobile-menu-panel">
+            <div
+              className="mobile-menu-panel"
+              ref={mobileMenuPanelRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="mobile-menu-title"
+            >
               <div className="mobile-menu-head">
-                <strong>Швидка навігація</strong>
-                <p>Усе головне під рукою, без зайвого скролу і пошуку по сторінці.</p>
+                <div>
+                  <strong id="mobile-menu-title">Навігація</strong>
+                  <p>Оберіть розділ або перейдіть до заявки.</p>
+                </div>
+                <button
+                  className="mobile-menu-close"
+                  type="button"
+                  aria-label="Закрити меню"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
               </div>
 
               <nav className="mobile-nav" aria-label="Мобільна навігація">
@@ -1234,11 +1302,15 @@ export function HomePage() {
                   <a
                     className={activeSection === link.id ? "is-active" : ""}
                     href={`#${link.id}`}
+                    aria-current={activeSection === link.id ? "location" : undefined}
                     key={link.id}
-                    onClick={() => setMenuOpen(false)}
+                    onClick={() => {
+                      setActiveSection(link.id);
+                      setMenuOpen(false);
+                    }}
                   >
                     <strong>{link.label}</strong>
-                    <span>{sectionDescriptions[link.id]}</span>
+                    <span aria-hidden="true">→</span>
                   </a>
                 ))}
               </nav>
@@ -1247,9 +1319,13 @@ export function HomePage() {
                 <a
                   className="primary-button compact"
                   href="#lead-form"
-                  onClick={() => setMenuOpen(false)}
+                  aria-current={activeSection === "lead-form" ? "location" : undefined}
+                  onClick={() => {
+                    setActiveSection("lead-form");
+                    setMenuOpen(false);
+                  }}
                 >
-                  Подати заявку
+                  Залишити заявку
                 </a>
                 <a
                   className="ghost-button compact"
@@ -1269,20 +1345,12 @@ export function HomePage() {
                 </a> : null}
               </div>
 
-              <div className="mobile-menu-stats">
-                {heroFacts.slice(0, 3).map((item) => (
-                  <article className="mobile-menu-stat" key={item.label}>
-                    <strong>{item.value}</strong>
-                    <span>{item.label}</span>
-                  </article>
-                ))}
-              </div>
             </div>
           </div>
         )}
       </header>
 
-      <main id="top">
+      <main id="top" tabIndex={-1}>
         <section className="hero">
           <div className="hero-blur hero-blur-a" aria-hidden="true"></div>
           <div className="hero-blur hero-blur-b" aria-hidden="true"></div>
@@ -2237,7 +2305,12 @@ export function HomePage() {
             </button>
           </div>
         )}
-        <a className="primary-button compact" href="#lead-form">
+        <a
+          className="primary-button compact"
+          href="#lead-form"
+          aria-current={activeSection === "lead-form" ? "location" : undefined}
+          onClick={() => setActiveSection("lead-form")}
+        >
           {selectedLeadProduct && selectedLeadPlan ? "Оформити вибір" : "Подати заявку"}
         </a>
         <a

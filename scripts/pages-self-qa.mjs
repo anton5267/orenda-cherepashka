@@ -128,6 +128,60 @@ try {
   assert.equal(await page.locator('a[href="https://t.me/yts_nnn"]').count() > 0, true);
   assert.equal(await page.locator('a[href="https://t.me/arenda_cherepashka"]').count() > 0, true);
   assert.equal(await page.locator('a[href="https://t.me/cherepashka_vidguk"]').count() > 0, true);
+
+  const mobileMenuToggle = page.getByRole("button", { name: "Відкрити меню" });
+  assert.equal(await mobileMenuToggle.isVisible(), true, "Mobile menu toggle was not visible at 390px.");
+  await mobileMenuToggle.click();
+  const mobileMenu = page.getByRole("dialog", { name: "Навігація" });
+  await mobileMenu.waitFor();
+  assert.deepEqual(
+    await mobileMenu.locator(".mobile-nav strong").allTextContents(),
+    ["Каталог", "Питання", "Новини", "Відгуки"],
+    "Mobile navigation labels or order were unexpected."
+  );
+  assert.equal(
+    await mobileMenu.getByRole("link", { name: "Залишити заявку" }).getAttribute("href"),
+    "#lead-form",
+    "Mobile application CTA did not point to the lead form."
+  );
+  await page.keyboard.press("Escape");
+  await mobileMenu.waitFor({ state: "detached" });
+  assert.equal(
+    await page.evaluate(() => document.activeElement?.classList.contains("menu-toggle")),
+    true,
+    "Closing the mobile menu did not return keyboard focus to its toggle."
+  );
+
+  await page.getByRole("button", { name: "Відкрити меню" }).click();
+  await page.getByRole("dialog", { name: "Навігація" }).getByRole("link", { name: "Питання" }).click();
+  await page.waitForURL(/#faq$/);
+  await page.getByRole("button", { name: "Відкрити меню" }).click();
+  assert.equal(
+    await page.getByRole("dialog", { name: "Навігація" })
+      .getByRole("link", { name: "Питання" }).getAttribute("aria-current"),
+    "location",
+    "The current mobile section was not marked as active."
+  );
+  await page.getByRole("dialog", { name: "Навігація" }).getByRole("button", { name: "Закрити меню" }).click();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  assert.equal(await page.locator(".desktop-nav").isVisible(), true, "Desktop navigation was hidden at 1440px.");
+  assert.equal(await page.locator(".menu-toggle").isVisible(), false, "Mobile toggle remained visible at 1440px.");
+  assert.equal(await page.getByRole("link", { name: "Залишити заявку" }).getAttribute("href"), "#lead-form");
+  await page.getByRole("link", { name: "Залишити заявку" }).click();
+  await page.waitForURL(/#lead-form$/);
+  assert.equal(
+    await page.getByRole("link", { name: "Залишити заявку" }).getAttribute("aria-current"),
+    "location",
+    "The application action was not marked active at the lead form."
+  );
+  await page.locator(".desktop-nav").getByRole("link", { name: "Новини" }).click();
+  await page.waitForURL(/#news$/);
+  assert.equal(
+    await page.locator(".desktop-nav").getByRole("link", { name: "Новини" }).getAttribute("aria-current"),
+    "location",
+    "The current desktop section was not marked as active."
+  );
+
   assert.equal(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
     true,
@@ -310,6 +364,16 @@ try {
           layout.productColumns,
           expectedColumns,
           `Catalog should use ${expectedColumns} columns at ${width}px.`
+        );
+        assert.equal(
+          await page.locator(".menu-toggle").isVisible(),
+          width <= 1080,
+          `Mobile/tablet navigation toggle had the wrong visibility at ${width}px.`
+        );
+        assert.equal(
+          await page.locator(".desktop-nav").isVisible(),
+          width > 1080,
+          `Desktop navigation had the wrong visibility at ${width}px.`
         );
       }
 

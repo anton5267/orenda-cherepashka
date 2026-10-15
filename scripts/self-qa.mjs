@@ -1673,7 +1673,7 @@ async function runPublicChecks(browser) {
     await mobileMenuToggle.click();
     const mobileMenuPanel = mobilePage.locator(".mobile-menu-panel");
     await mobileMenuPanel.waitFor();
-    await mobileMenuPanel.locator(".mobile-nav a").filter({ hasText: "Заявка" }).first().click();
+    await mobileMenuPanel.getByRole("link", { name: "Залишити заявку" }).click();
     await mobileMenuPanel.waitFor({ state: "detached" });
     await mobilePage.locator("#lead-form").waitFor();
   }
