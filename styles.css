@@ -5167,3 +5167,137 @@ textarea[aria-invalid="true"] {
   .button-spinner { animation-duration: 1400ms; }
   .ds-card-interactive, .primary-button, .ghost-button, .filter-pill, .admin-nav-link { transition-duration: 0.01ms; }
 }
+
+:root {
+  --motion-normal: 180ms;
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --motion-enter: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mobile-menu-backdrop {
+  animation: motion-fade-in var(--motion-normal) var(--motion-ease) both;
+}
+
+.mobile-menu-panel {
+  transform-origin: center top;
+  animation: motion-panel-in 220ms var(--motion-enter) both;
+}
+
+.modal {
+  transition-duration: var(--motion-normal);
+  transition-timing-function: var(--motion-ease);
+}
+
+.modal-panel {
+  opacity: 0;
+  transform: translateY(10px) scale(0.985);
+  transition:
+    opacity var(--motion-normal) var(--motion-ease),
+    transform 220ms var(--motion-enter);
+}
+
+.modal.is-open .modal-panel {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  animation: motion-panel-in 220ms var(--motion-enter) both;
+}
+
+.ds-card,
+.product-card,
+.feature-card,
+.faq-item,
+.news-card,
+.admin-card,
+.admin-list-item,
+.dashboard-stat,
+.settings-preview-card,
+.hero-proof-card,
+.hero-shortcut-card,
+.lead-flow-card,
+.review-card,
+.product-detail-page,
+.lead-panel,
+.auth-card {
+  transition:
+    transform var(--motion-normal) var(--motion-ease),
+    border-color var(--motion-normal) var(--motion-ease),
+    box-shadow var(--motion-normal) var(--motion-ease),
+    background-color var(--motion-normal) var(--motion-ease),
+    opacity var(--motion-normal) var(--motion-ease);
+}
+
+.primary-button,
+.ghost-button,
+.cta-button,
+.detail-button,
+.danger-button,
+.filter-pill,
+.theme-toggle,
+.menu-toggle,
+.icon-button,
+.modal-close,
+.admin-nav-link,
+.mobile-nav a,
+.field-control,
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  transition-duration: var(--motion-normal);
+  transition-timing-function: var(--motion-ease);
+}
+
+.primary-button:active,
+.ghost-button:active,
+.cta-button:active,
+.detail-button:active,
+.danger-button:active,
+.filter-pill:active,
+.theme-toggle:active,
+.menu-toggle:active,
+.icon-button:active,
+.modal-close:active,
+.admin-nav-link:active,
+.mobile-nav a:active {
+  transform: scale(0.985);
+}
+
+@keyframes motion-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes motion-panel-in {
+  from { opacity: 0; transform: translateY(9px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-menu-backdrop,
+  .mobile-menu-panel,
+  .modal-panel {
+    animation: none !important;
+    transition-duration: 1ms !important;
+  }
+
+  .modal,
+  .ds-card,
+  .primary-button,
+  .ghost-button,
+  .cta-button,
+  .detail-button,
+  .danger-button,
+  .filter-pill,
+  .theme-toggle,
+  .menu-toggle,
+  .icon-button,
+  .modal-close,
+  .admin-nav-link,
+  .mobile-nav a {
+    transition-duration: 1ms !important;
+  }
+
+  .button-spinner {
+    animation: none !important;
+    border-right-color: currentColor;
+  }
+}
