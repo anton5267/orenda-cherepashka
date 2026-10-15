@@ -1,3 +1,5 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,4 +24,11 @@ for (const script of ["build-cloudflare.mjs", "pages-self-qa.mjs"]) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-console.log("Cloudflare Pages root-path build and browser QA passed.");
+const redirects = readFileSync(resolve(rootDir, "dist", "_redirects"), "utf8")
+  .split(/\r?\n/)
+  .map((line) => line.trim())
+  .filter(Boolean);
+assert(redirects.includes("/admin /index.html 200"), "Cloudflare Pages must serve the SPA shell at /admin with HTTP 200.");
+assert(redirects.includes("/admin/* /index.html 200"), "Cloudflare Pages must serve the SPA shell for direct admin routes with HTTP 200.");
+
+console.log("Cloudflare Pages root-path build, admin-route rewrites, and browser QA passed.");
