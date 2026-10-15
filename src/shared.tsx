@@ -459,6 +459,8 @@ export function ProductLogo({
           src={src}
           alt={alt}
           loading="lazy"
+          decoding="async"
+          fetchPriority="low"
           onError={() => setFailed(true)}
         />
       ) : null}

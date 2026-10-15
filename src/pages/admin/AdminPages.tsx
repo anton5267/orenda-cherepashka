@@ -199,7 +199,11 @@ function BulkActionBar({
         <strong>{selectedCount}</strong>
         <span>виділено</span>
       </div>
-      <select value={value} onChange={(event) => onValueChange(event.target.value)}>
+      <select
+        aria-label="Масова дія"
+        value={value}
+        onChange={(event) => onValueChange(event.target.value)}
+      >
         <option value="">Оберіть bulk-дію</option>
         {options.map((option) => (
           <option key={option.value} value={option.value}>

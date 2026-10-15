@@ -7,28 +7,64 @@ import {
   RouterProvider,
   useLocation
 } from "react-router-dom";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { ThemeProvider } from "./theme";
 import { ToastProvider } from "./toasts";
 import { HomePage } from "./pages/HomePage";
-import { ProductPage } from "./pages/ProductPage";
-import { LegalPage } from "./pages/LegalPage";
-import { AdminLoginPage } from "./pages/AdminLoginPage";
-import { AdminGuard, AdminLayout } from "./pages/admin/AdminLayout";
-import {
-  AdminCategoriesPage,
-  AdminDashboardPage,
-  AdminFaqsPage,
-  AdminLeadsPage,
-  AdminNewsPage,
-  AdminProductsPage,
-  AdminReviewsPage,
-  AdminSettingsPage
-} from "./pages/admin/AdminPages";
 import { api, staticSiteBasePath } from "./api";
 import { readUtmAttribution } from "./attribution";
 
 const isStaticSite = import.meta.env.VITE_STATIC_SITE === "true";
+
+const ProductPage = lazy(() =>
+  import("./pages/ProductPage").then(({ ProductPage }) => ({ default: ProductPage }))
+);
+const LegalPage = lazy(() =>
+  import("./pages/LegalPage").then(({ LegalPage }) => ({ default: LegalPage }))
+);
+const AdminLoginPage = lazy(() =>
+  import("./pages/AdminLoginPage").then(({ AdminLoginPage }) => ({ default: AdminLoginPage }))
+);
+const { AdminGuard, AdminLayout } = {
+  AdminGuard: lazy(() =>
+    import("./pages/admin/AdminLayout").then(({ AdminGuard }) => ({ default: AdminGuard }))
+  ),
+  AdminLayout: lazy(() =>
+    import("./pages/admin/AdminLayout").then(({ AdminLayout }) => ({ default: AdminLayout }))
+  )
+};
+const AdminDashboardPage = lazy(() =>
+  import("./pages/admin/AdminPages").then(({ AdminDashboardPage }) => ({ default: AdminDashboardPage }))
+);
+const AdminProductsPage = lazy(() =>
+  import("./pages/admin/AdminPages").then(({ AdminProductsPage }) => ({ default: AdminProductsPage }))
+);
+const AdminCategoriesPage = lazy(() =>
+  import("./pages/admin/AdminPages").then(({ AdminCategoriesPage }) => ({ default: AdminCategoriesPage }))
+);
+const AdminFaqsPage = lazy(() =>
+  import("./pages/admin/AdminPages").then(({ AdminFaqsPage }) => ({ default: AdminFaqsPage }))
+);
+const AdminNewsPage = lazy(() =>
+  import("./pages/admin/AdminPages").then(({ AdminNewsPage }) => ({ default: AdminNewsPage }))
+);
+const AdminReviewsPage = lazy(() =>
+  import("./pages/admin/AdminPages").then(({ AdminReviewsPage }) => ({ default: AdminReviewsPage }))
+);
+const AdminLeadsPage = lazy(() =>
+  import("./pages/admin/AdminPages").then(({ AdminLeadsPage }) => ({ default: AdminLeadsPage }))
+);
+const AdminSettingsPage = lazy(() =>
+  import("./pages/admin/AdminPages").then(({ AdminSettingsPage }) => ({ default: AdminSettingsPage }))
+);
+
+function RouteLoading() {
+  return (
+    <main className="route-loading" role="status" aria-live="polite" aria-busy="true">
+      Завантаження сторінки…
+    </main>
+  );
+}
 
 function PublicAnalyticsLayout() {
   const location = useLocation();
@@ -97,7 +133,9 @@ function App() {
   return (
     <ThemeProvider>
       <ToastProvider>
-        <RouterProvider router={router} />
+        <Suspense fallback={<RouteLoading />}>
+          <RouterProvider router={router} />
+        </Suspense>
       </ToastProvider>
     </ThemeProvider>
   );

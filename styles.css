@@ -88,7 +88,7 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  font-family: "Manrope", "Segoe UI", sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.55;
   color: var(--ink);
   background:
@@ -5334,7 +5334,7 @@ textarea {
 
 /* Responsive typography and reading rhythm shared across every route. */
 :root {
-  --font-sans: "Manrope", "Segoe UI", system-ui, sans-serif;
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --type-body: clamp(1rem, calc(0.98rem + 0.1vw), 1.0625rem);
   --type-lead: clamp(1.05rem, calc(1rem + 0.25vw), 1.2rem);
   --type-display: clamp(2.35rem, calc(1.25rem + 4.4vw), 4.75rem);
@@ -5802,4 +5802,48 @@ p {
   .checkbox-row {
     min-height: 48px;
   }
+}
+
+/* Keep paint and motion costs low on narrow, touch-first devices. */
+@media (max-width: 760px) {
+  .hero-blur {
+    display: none;
+  }
+
+  .site-header.is-scrolled,
+  .mobile-menu-backdrop,
+  .mobile-menu-panel,
+  .modal-backdrop,
+  .toast,
+  .mobile-cta,
+  .desktop-selection-bar,
+  .admin-mobile-menu-panel,
+  .bulk-toolbar-floating,
+  .dashboard-stat,
+  .admin-list-item {
+    backdrop-filter: none;
+  }
+
+  .loading-block {
+    animation: none;
+    background-size: 100% 100%;
+  }
+
+  .page-shell {
+    animation: none;
+  }
+
+  .reveal {
+    transform: none;
+    transition: opacity 160ms ease;
+  }
+}
+
+.route-loading {
+  display: grid;
+  min-height: 45vh;
+  place-items: center;
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
 }

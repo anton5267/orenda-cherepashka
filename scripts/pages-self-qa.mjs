@@ -20,6 +20,8 @@ assert(address && typeof address !== "string", "Pages smoke server did not expos
 const browser = await chromium.launch({ headless: true });
 const errors = [];
 const contentSecurityErrors = [];
+const externalFontRequests = [];
+const initialModuleRequests = [];
 const apiSmokeEnabled = process.env.PAGES_API_SMOKE === "true";
 const responsiveViewports = [320, 375, 390, 768, 1024, 1440, 1920];
 let mockedLeadPostCount = 0;
@@ -85,6 +87,14 @@ async function installPagesApiMock(page, pageOrigin) {
 try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   page.on("pageerror", (error) => errors.push(error.message));
+  page.on("request", (request) => {
+    if (request.resourceType() === "script") {
+      initialModuleRequests.push(request.url());
+    }
+    if (/fonts\.(?:googleapis|gstatic)\.com/i.test(request.url())) {
+      externalFontRequests.push(request.url());
+    }
+  });
   page.on("console", (message) => {
     if (message.type() === "error" && /Content Security Policy|Refused to (?:connect|load|execute)/i.test(message.text())) {
       contentSecurityErrors.push(message.text());
@@ -271,7 +281,62 @@ try {
 
   await page.locator(".product-card").first().waitFor();
   assert.equal(await page.locator(".product-card").count(), 35, "Pages catalog did not render all products.");
+  assert(
+    initialModuleRequests.every((url) => !/\/(?:AdminPages|AdminLayout|AdminLoginPage|ProductPage|LegalPage)-[^/]+\.js(?:\?|$)/.test(url)),
+    `The home page eagerly requested a route-only JavaScript chunk: ${initialModuleRequests.join(", ")}`
+  );
   assert.equal(await page.locator(".product-card").first().getByText("Наявність уточнюйте").count(), 1);
+  assert.equal(await page.locator("main").count(), 1, "Home page must expose one primary main landmark.");
+  const unnamedControls = await page.evaluate(() => {
+    const isExposed = (element) => {
+      const style = getComputedStyle(element);
+      return style.display !== "none" && style.visibility !== "hidden" &&
+        element.getClientRects().length > 0 &&
+        !element.closest('[aria-hidden="true"], [hidden], [inert]');
+    };
+    const accessibleName = (element) => {
+      const labelledBy = element.getAttribute("aria-labelledby")
+        ?.split(/\s+/)
+        .map((id) => document.getElementById(id)?.textContent?.trim() ?? "")
+        .join(" ");
+      const labels = [...(element.labels ?? [])].map((label) => label.textContent?.trim() ?? "").join(" ");
+      const imageAlt = [...element.querySelectorAll("img[alt]")].map((image) => image.alt).join(" ");
+      return element.getAttribute("aria-label") || labelledBy || labels ||
+        element.getAttribute("title") || element.innerText || imageAlt || "";
+    };
+    return [...document.querySelectorAll(
+      'a[href], button, input:not([type="hidden"]), select, textarea'
+    )]
+      .filter(isExposed)
+      .filter((element) => !accessibleName(element).trim())
+      .map((element) => `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ""}`);
+  });
+  assert.deepEqual(unnamedControls, [], `Visible interactive controls need accessible names: ${unnamedControls.join(", ")}`);
+  const logoImageAudit = await page.locator(".product-logo img").evaluateAll((images) =>
+    images.map((image) => ({
+      loading: image.getAttribute("loading"),
+      decoding: image.getAttribute("decoding"),
+      fetchPriority: image.getAttribute("fetchpriority")
+    }))
+  );
+  assert(logoImageAudit.length > 0, "Catalog logos were not rendered as images.");
+  assert(logoImageAudit.every((image) =>
+    image.loading === "lazy" && image.decoding === "async" && image.fetchPriority === "low"
+  ), "Catalog logos should load lazily, decode asynchronously and use low fetch priority.");
+  await page.keyboard.press("Tab");
+  const firstKeyboardFocus = await page.evaluate(() => ({
+    className: (document.activeElement instanceof HTMLElement ? document.activeElement.className : ""),
+    boxShadow: getComputedStyle(document.activeElement).boxShadow,
+    outlineStyle: getComputedStyle(document.activeElement).outlineStyle
+  }));
+  assert.match(String(firstKeyboardFocus.className), /skip-link/, "Keyboard navigation should start with the skip-to-content link.");
+  assert(
+    firstKeyboardFocus.boxShadow !== "none" || firstKeyboardFocus.outlineStyle !== "none",
+    "Keyboard focus must have a visible focus indicator."
+  );
+  await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
+  await page.locator("body").click({ position: { x: 4, y: 4 } });
+  assert.deepEqual(externalFontRequests, [], "The page should not depend on third-party font downloads.");
   const gmailCard = page.locator(".product-card").filter({ hasText: "Gmail пошта" }).first();
   assert.equal(await gmailCard.locator(".plan-chip").filter({ hasText: "$1.90" }).count(), 1);
   assert.equal(await gmailCard.locator(".plan-chip").filter({ hasText: "$1.70" }).count(), 1);
@@ -333,6 +398,26 @@ try {
     await installPagesApiMock(touchPage, new URL(baseUrl).origin);
     await touchPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
     await touchPage.locator(".product-card").first().waitFor();
+    const lowPowerMobileStyles = await touchPage.evaluate(() => {
+      const skeleton = document.createElement("div");
+      skeleton.className = "loading-block";
+      document.body.append(skeleton);
+      const skeletonAnimation = getComputedStyle(skeleton).animationName;
+      skeleton.remove();
+      return {
+        heroDecoration: getComputedStyle(document.querySelector(".hero-blur")).display,
+        skeletonAnimation,
+        revealTransition: getComputedStyle(document.querySelector(".reveal")).transitionDuration
+      };
+    });
+    assert.equal(lowPowerMobileStyles.heroDecoration, "none",
+      "Large blurred hero decorations should not be painted on narrow phones.");
+    assert.equal(lowPowerMobileStyles.skeletonAnimation, "none",
+      "Skeleton shimmer should be disabled on narrow phones.");
+    assert(
+      Number.parseFloat(lowPowerMobileStyles.revealTransition) <= 0.2,
+      "Scroll reveals should stay short on narrow phones."
+    );
 
     const mobileMenuToggle = touchPage.getByRole("button", { name: "Відкрити меню" });
     const menuToggleBox = await mobileMenuToggle.boundingBox();
@@ -342,6 +427,10 @@ try {
     const touchMenu = touchPage.getByRole("dialog", { name: "Навігація" });
     const menuPanel = touchPage.locator(".mobile-menu-panel");
     await menuPanel.waitFor();
+    const menuBackdropFilters = await touchPage.locator(".mobile-menu-backdrop, .mobile-menu-panel")
+      .evaluateAll((elements) => elements.map((element) => getComputedStyle(element).backdropFilter));
+    assert(menuBackdropFilters.every((filter) => filter === "none"),
+      "The mobile navigation should not blur large areas behind its panels.");
     const menuGeometry = await menuPanel.evaluate((element) => ({
       top: element.getBoundingClientRect().top,
       bottom: element.getBoundingClientRect().bottom,
@@ -383,7 +472,7 @@ try {
       "The all-categories filter remained selected after choosing a category.");
     const selectedFilterBox = await categoryFilter.boundingBox();
     assert(selectedFilterBox && selectedFilterBox.height >= 44,
-      "Catalog category filter is smaller than a comfortable touch target.");
+      `Catalog category filter is smaller than a comfortable touch target (${selectedFilterBox?.height ?? "not rendered"}px).`);
 
     const activeSearchChip = touchPage.locator(".catalog-filter-chip").filter({ hasText: "Пошук:" });
     const searchChipBox = await activeSearchChip.boundingBox();
