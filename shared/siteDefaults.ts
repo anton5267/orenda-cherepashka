@@ -18,5 +18,7 @@ export const defaultSiteSettings: SiteSettings = {
   siteName: "Orenda Cherepashka",
   telegramContactUrl: "https://t.me/yts_nnn",
   telegramNewsChannelUrl: "https://t.me/arenda_cherepashka",
+  telegramReviewsChannelUrl: "https://t.me/cherepashka_vidguk",
+  telegramAutoPublish: true,
   ...recommendedSettingsCopy
 };

@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   api,
   ApiError,
   getStaticNewsFeedFetchedAt,
   hasConfiguredLiveApi,
+  isSupabaseConfigured,
   isStaticSite,
   staticSiteBasePath
 } from "../api";
 import { defaultSiteSettings } from "../../shared/siteDefaults";
 import { getTelegramPromotionExpiry } from "../../shared/newsDates";
+import { getTrustedTelegramSourceUrl } from "../newsFeed";
 import { preserveUtmAttribution, readUtmAttribution } from "../attribution";
 import type {
   Category,
@@ -332,6 +334,7 @@ export function HomePage() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [activeSection, setActiveSection] = useState<SectionId>("catalog");
+  const sectionNavigationHoldUntilRef = useRef(0);
   const [leadSubmitting, setLeadSubmitting] = useState(false);
   const [leadSuccess, setLeadSuccess] = useState("");
   const [leadOrderId, setLeadOrderId] = useState("");
@@ -346,6 +349,11 @@ export function HomePage() {
     pricingOptionId: "",
     neededBy: ""
   });
+
+  const selectSection = (section: SectionId) => {
+    sectionNavigationHoldUntilRef.current = Date.now() + 1800;
+    setActiveSection(section);
+  };
 
   useEffect(() => {
     if (
@@ -369,12 +377,15 @@ export function HomePage() {
   const selectedProductParam = searchParams.get("product") ?? "";
   const selectedPlanParam = searchParams.get("plan") ?? "";
   const displaySettings = settings ?? defaultSiteSettings;
+  const publicHeroSubtitle = /chatgpt|openai/i.test(displaySettings.heroSubtitle)
+    ? "Популярні цифрові сервіси з актуальними тарифами, швидким підключенням і підтримкою."
+    : displaySettings.heroSubtitle;
 
   useEffect(() => {
     setCatalogVisibleLimit(catalogBatchSize);
   }, [activeCategory, searchTerm, sortKey]);
 
-  const totalProducts = products.length || 35;
+  const totalProducts = products.length;
   const totalCategories = categories.length || 6;
   const totalReviews = reviews.length;
   const latestTelegramPost = news
@@ -940,6 +951,7 @@ export function HomePage() {
 
     const observer = new IntersectionObserver(
       (entries) => {
+        if (Date.now() < sectionNavigationHoldUntilRef.current) return;
         const visibleEntry = entries
           .filter((entry) => entry.isIntersecting)
           .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
@@ -1299,7 +1311,7 @@ export function HomePage() {
                   href={`#${link.id}`}
                   aria-current={activeSection === link.id ? "location" : undefined}
                   key={link.id}
-                  onClick={() => setActiveSection(link.id)}
+                  onClick={() => selectSection(link.id)}
                 >
                   {link.label}
                 </a>
@@ -1321,7 +1333,7 @@ export function HomePage() {
                 href="#lead-form"
                 ref={headerApplyRef}
                 aria-current={activeSection === "lead-form" ? "location" : undefined}
-                onClick={() => setActiveSection("lead-form")}
+                onClick={() => selectSection("lead-form")}
               >
                 Залишити заявку
               </a>
@@ -1378,7 +1390,7 @@ export function HomePage() {
                     aria-current={activeSection === link.id ? "location" : undefined}
                     key={link.id}
                     onClick={() => {
-                      setActiveSection(link.id);
+                      selectSection(link.id);
                       setMenuOpen(false);
                     }}
                   >
@@ -1394,7 +1406,7 @@ export function HomePage() {
                   href="#lead-form"
                   aria-current={activeSection === "lead-form" ? "location" : undefined}
                   onClick={() => {
-                    setActiveSection("lead-form");
+                    selectSection("lead-form");
                     setMenuOpen(false);
                   }}
                 >
@@ -1440,7 +1452,7 @@ export function HomePage() {
                   displaySettings.heroTitle
                 )}
               </h1>
-              <p className="hero-lead">{displaySettings.heroSubtitle}</p>
+              <p className="hero-lead">{publicHeroSubtitle}</p>
               <div className="hero-actions-row">
                 <a className="primary-button" href="#catalog">
                   Переглянути каталог
@@ -1548,7 +1560,7 @@ export function HomePage() {
                       autoCapitalize="none"
                       autoCorrect="off"
                       spellCheck={false}
-                      placeholder="Наприклад, ChatGPT, Netflix, VPN..."
+                      placeholder="Наприклад, Netflix, Grok, VPN..."
                       value={searchTerm}
                       onChange={(event) =>
                         updateCatalogParams({ q: event.target.value })
@@ -1859,7 +1871,7 @@ export function HomePage() {
               <span className="section-kicker">Оновлення</span>
               <h2>Останні новини</h2>
               <p>Публікації з каналу. Автоматична перевірка стрічки — приблизно раз на 30 хвилин.</p>
-              {isStaticSite && (
+              {isStaticSite && !isSupabaseConfigured && (
                 <p
                   className={`news-feed-status${newsFeedCheckIsStale || latestPostIsStale || !newsFeedFetchedAt ? " is-warning" : ""}`}
                   role="status"
@@ -1878,6 +1890,25 @@ export function HomePage() {
                     : latestPostIsStale
                       ? " Новіших дописів понад 14 днів — актуальні умови перевірте в каналі."
                       : ""}
+                </p>
+              )}
+              {isStaticSite && isSupabaseConfigured && (
+                <p
+                  className={`news-feed-status${!displaySettings.telegramAutoPublish || latestPostIsStale || newsFeedCheckIsStale || !newsFeedFetchedAt ? " is-warning" : ""}`}
+                  role="status"
+                >
+                  {displaySettings.telegramAutoPublish
+                    ? "Автопублікацію дописів Telegram дозволено; свіжі публічні дописи також підтягуються зі стрічки."
+                    : "Автоматичну публікацію новин тимчасово вимкнено адміністратором."}
+                  {newsFeedFetchedAt
+                    ? ` Остання автоматична перевірка стрічки: ${new Intl.DateTimeFormat("uk-UA", {
+                        dateStyle: "medium",
+                        timeStyle: "short"
+                      }).format(new Date(newsFeedFetchedAt))}.`
+                    : " Час останньої автоматичної перевірки стрічки невідомий."}
+                  {latestPostDateLabel ? ` Найновіший допис у каналі: ${latestPostDateLabel}.` : " Новин у каталозі поки немає."}
+                  {newsFeedCheckIsStale ? " Автоматична перевірка затримується — відкрийте канал напряму." : ""}
+                  {!newsFeedCheckIsStale && latestPostIsStale ? " Перевірте канал: нових дописів понад 14 днів." : ""}
                 </p>
               )}
               <a
@@ -1927,12 +1958,12 @@ export function HomePage() {
                         </span>
                       );
                     })()}
-                    <h3>{item.title}</h3>
+                    <h3><Link className="news-card-title-link" to={`/news/${encodeURIComponent(item.id)}`}>{item.title}</Link></h3>
                     <p>{item.content}</p>
                     <div className="news-card-footer">
                       <span>{item.sourceType === "telegram" ? "Публікація каналу" : "Оновлення для замовлення"}</span>
-                      {item.sourceUrl ? (
-                        <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">
+                      {getTrustedTelegramSourceUrl(item.sourceUrl) ? (
+                        <a href={getTrustedTelegramSourceUrl(item.sourceUrl) ?? undefined} target="_blank" rel="noopener noreferrer">
                           Джерело в Telegram ↗
                         </a>
                       ) : (
@@ -1960,7 +1991,7 @@ export function HomePage() {
                   <article className="lead-flow-card" key={step.title}>
                     <strong>{step.title}</strong>
                     <p>
-                      {isStaticSite && index === 2
+                      {isStaticSite && !hasConfiguredLiveApi && index === 2
                         ? "Перевір підготовлений текст і надішли його менеджеру в Telegram."
                         : step.description}
                     </p>
@@ -2241,7 +2272,7 @@ export function HomePage() {
                   <p>Переглянь відгуки в нашому каналі перед замовленням. На сайті показуємо лише відгуки, які пройшли модерацію.</p>
                   <a
                     className="reviews-channel-url"
-                    href="https://t.me/cherepashka_vidguk"
+                    href={displaySettings.telegramReviewsChannelUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Відкрити канал відгуків @cherepashka_vidguk у Telegram"
@@ -2252,7 +2283,7 @@ export function HomePage() {
                 <div className="reviews-spotlight-actions">
                   <a
                     className="primary-button compact"
-                    href="https://t.me/cherepashka_vidguk"
+                    href={displaySettings.telegramReviewsChannelUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -2309,7 +2340,9 @@ export function HomePage() {
                     <a href={`#${link.id}`}>{link.label}</a>
                   </li>
                 ))}
-                {!isStaticSite ? <li><a href="/admin/login">Адмін-панель</a></li> : null}
+                {!isStaticSite || isSupabaseConfigured ? (
+                  <li><a href={`${isStaticSite ? staticSiteBasePath : ""}/admin/login`}>Адмін-панель</a></li>
+                ) : null}
               </ul>
             </div>
 
@@ -2392,7 +2425,7 @@ export function HomePage() {
           className="primary-button compact"
           href="#lead-form"
           aria-current={activeSection === "lead-form" ? "location" : undefined}
-          onClick={() => setActiveSection("lead-form")}
+          onClick={() => selectSection("lead-form")}
         >
           {selectedLeadProduct && selectedLeadPlan ? "Оформити вибір" : "Подати заявку"}
         </a>

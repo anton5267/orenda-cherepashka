@@ -66,7 +66,8 @@ function makeProduct(
   summary: string,
   logo: string,
   pricingOptions: SeedProduct["pricingOptions"],
-  sortOrder: number
+  sortOrder: number,
+  isActive = true
 ): SeedProduct {
   return {
     id,
@@ -80,7 +81,7 @@ function makeProduct(
     ],
     logo,
     isHot: false,
-    isActive: true,
+    isActive,
     sortOrder,
     pricingOptions
   };
@@ -98,16 +99,18 @@ const spotifyLogo = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/S
 const canvaLogo = "https://www.edigitalagency.com.au/wp-content/uploads/Canva-logo-PNG-large-size.png";
 
 export const seedProducts: SeedProduct[] = [
+  // Keep OpenAI subscription offers out of the public seed until they can be
+  // replaced with an authorized per-user distribution model.
   makeProduct("chatgpt-pro-shared", "📱 ChatGPT Pro [спільний до 5–6 користувачів]", "chatgpt-pro-shared", "cat-ai", "Спільний формат для 5–6 користувачів. Виберіть Codex або варіант без Codex.", chatGptLogo, [
     plan("1 міс · +Codex", 1390, 1),
     plan("1 міс · без Codex", 1100, 2),
     plan("3+ міс · +Codex / міс", 1250, 3),
     plan("3+ міс · без Codex / міс", 1000, 4)
-  ], 1),
-  makeProduct("chatgpt-plus-shared", "📱 ChatGPT Plus [спільний до 9 користувачів]", "chatgpt-plus-9", "cat-ai", "Спільний доступ до ChatGPT Plus до 9 користувачів.", chatGptLogo, monthlyPlans(110, 100), 2),
-  makeProduct("chatgpt-plus-shared-5", "📱 ChatGPT Plus [спільний до 5 користувачів]", "chatgpt-plus-5", "cat-ai", "Спільний доступ до ChatGPT Plus до 5 користувачів.", chatGptLogo, monthlyPlans(280, 260), 3),
-  makeProduct("chatgpt-plus-personal-no-guarantee", "📱 ChatGPT Plus [особистий без гарантії]", "chatgpt-plus-personal-no-guarantee", "cat-ai", "Особистий формат ChatGPT Plus без гарантії.", chatGptLogo, [plan("1 міс · за місяць", 250, 1)], 4),
-  makeProduct("chatgpt-plus-personal-15-day-guarantee", "📱 ChatGPT Plus [особистий, гарантія 15 днів]", "chatgpt-plus-personal-guarantee", "cat-ai", "Особистий формат ChatGPT Plus із гарантією 15 днів.", chatGptLogo, [plan("1 міс · за місяць", 350, 1)], 5),
+  ], 1, false),
+  makeProduct("chatgpt-plus-shared", "📱 ChatGPT Plus [спільний до 9 користувачів]", "chatgpt-plus-9", "cat-ai", "Спільний доступ до ChatGPT Plus до 9 користувачів.", chatGptLogo, monthlyPlans(110, 100), 2, false),
+  makeProduct("chatgpt-plus-shared-5", "📱 ChatGPT Plus [спільний до 5 користувачів]", "chatgpt-plus-5", "cat-ai", "Спільний доступ до ChatGPT Plus до 5 користувачів.", chatGptLogo, monthlyPlans(280, 260), 3, false),
+  makeProduct("chatgpt-plus-personal-no-guarantee", "📱 ChatGPT Plus [особистий без гарантії]", "chatgpt-plus-personal-no-guarantee", "cat-ai", "Особистий формат ChatGPT Plus без гарантії.", chatGptLogo, [plan("1 міс · за місяць", 250, 1)], 4, false),
+  makeProduct("chatgpt-plus-personal-15-day-guarantee", "📱 ChatGPT Plus [особистий, гарантія 15 днів]", "chatgpt-plus-personal-guarantee", "cat-ai", "Особистий формат ChatGPT Plus із гарантією 15 днів.", chatGptLogo, [plan("1 міс · за місяць", 350, 1)], 5, false),
   makeProduct("netflix-profile", "📹 Netflix Premium 4K [доступ у профіль]", "netflix-premium-profile", "cat-streaming", "Доступ до профілю Netflix Premium 4K.", netflixLogo, monthlyPlans(130, 115), 6),
   makeProduct("netflix-personal-admin", "📹 Netflix Premium 4K [особистий адм. акаунт]", "netflix-premium-personal-admin", "cat-streaming", "Особистий адміністраторський акаунт Netflix Premium 4K.", netflixLogo, [plan("1 міс · за місяць", 280, 1)], 7),
   makeProduct(

@@ -1,12 +1,20 @@
 import assert from "node:assert/strict";
 import express from "express";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { chromium } from "playwright";
 
 const distDir = resolve("dist");
+const configuredBasePath = (process.env.PAGES_BASE_PATH ?? "/orenda-cherepashka")
+  .trim()
+  .replace(/^\/+|\/+$/g, "");
+const routePrefix = configuredBasePath ? `/${configuredBasePath}` : "";
+const publicSiteUrl = (process.env.PUBLIC_SITE_URL ?? "https://orenda-cherepashka-live.pages.dev")
+  .trim()
+  .replace(/\/+$/, "");
 const app = express();
-app.use("/orenda-cherepashka", express.static(distDir));
-app.use("/orenda-cherepashka", (_request, response) => {
+app.use(routePrefix || "/", express.static(distDir));
+app.use(routePrefix || "/", (_request, response) => {
   response.sendFile(resolve(distDir, "index.html"));
 });
 
@@ -31,14 +39,14 @@ let themeContrastAudit;
 async function installPagesApiMock(page, pageOrigin) {
   if (!apiSmokeEnabled) return;
 
-  await page.route("https://orenda-cherepashka.onrender.com/api/**", async (route) => {
+  await page.route("https://pages-api-smoke.supabase.co/functions/v1/**", async (route) => {
     const request = route.request();
     const requestUrl = new URL(request.url());
     const origin = request.headers().origin ?? pageOrigin;
     const corsHeaders = {
       "Access-Control-Allow-Origin": origin,
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Headers": "Authorization, Apikey, Content-Type, X-Client-Info",
       "Content-Type": "application/json"
     };
 
@@ -47,7 +55,7 @@ async function installPagesApiMock(page, pageOrigin) {
       return;
     }
 
-    if (request.method() === "POST" && requestUrl.pathname === "/api/leads") {
+    if (request.method() === "POST" && requestUrl.pathname.endsWith("/orenda-public") && requestUrl.searchParams.get("path") === "/api/leads") {
       mockedLeadPostCount += 1;
       const payload = JSON.parse(request.postData() ?? "{}");
       mockedLeadPayloads.push(payload);
@@ -100,19 +108,19 @@ try {
       contentSecurityErrors.push(message.text());
     }
   });
-  const baseUrl = `http://127.0.0.1:${address.port}/orenda-cherepashka/`;
+  const baseUrl = `http://127.0.0.1:${address.port}${routePrefix}/`;
   const initialUrl = apiSmokeEnabled
     ? `${baseUrl}?utm_source=pages-qa&utm_medium=smoke&utm_campaign=pages-api`
     : baseUrl;
   await installPagesApiMock(page, new URL(baseUrl).origin);
   const response = await page.goto(initialUrl, { waitUntil: "domcontentloaded" });
-  assert.equal(response?.status(), 200, "GitHub Pages root did not return HTTP 200.");
+  assert.equal(response?.status(), 200, "Static site root did not return HTTP 200.");
 
   const homeHtml = await (await fetch(baseUrl)).text();
   assert.match(homeHtml, /name="robots" content="index,follow"/);
-  assert.match(homeHtml, /rel="canonical" href="https:\/\/anton5267\.github\.io\/orenda-cherepashka\//);
+  assert.ok(homeHtml.includes(`rel="canonical" href="${publicSiteUrl}/"`), "Home canonical URL does not match the configured public URL.");
   assert.match(homeHtml, /http-equiv="Content-Security-Policy"/);
-  assert.match(homeHtml, /connect-src[^\"]+orenda-cherepashka\.onrender\.com/);
+  assert.match(homeHtml, /connect-src[^\"]+\*\.supabase\.co/);
   const themeBootstrapPosition = homeHtml.indexOf('<script id="theme-bootstrap">');
   const themeStylesheetPosition = homeHtml.indexOf('rel="stylesheet"');
   const themeAppModulePosition = homeHtml.lastIndexOf('type="module"');
@@ -126,12 +134,21 @@ try {
   assert.doesNotMatch(homeHtml, /orenda-cherepashka\.shop/);
   const robotsResponse = await fetch(`${baseUrl}robots.txt`);
   const robotsText = await robotsResponse.text();
-  assert.equal(robotsResponse.status, 200, "GitHub Pages robots.txt did not return HTTP 200.");
-  assert.match(robotsText, /Sitemap: https:\/\/anton5267\.github\.io\/orenda-cherepashka\/sitemap\.xml/);
+  assert.equal(robotsResponse.status, 200, "Static site robots.txt did not return HTTP 200.");
+  assert.ok(robotsText.includes(`Sitemap: ${publicSiteUrl}/sitemap.xml`), "robots.txt sitemap URL does not match the configured public URL.");
   const sitemapResponse = await fetch(`${baseUrl}sitemap.xml`);
   const sitemapText = await sitemapResponse.text();
-  assert.equal(sitemapResponse.status, 200, "GitHub Pages sitemap.xml did not return HTTP 200.");
-  assert.equal((sitemapText.match(/<loc>/g) ?? []).length, 40, "Sitemap should contain home, four legal pages and 35 products.");
+  assert.equal(sitemapResponse.status, 200, "Static site sitemap.xml did not return HTTP 200.");
+  const sitemapLocs = [...sitemapText.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1]);
+  const newsSitemapLocs = sitemapLocs.filter((url) => /\/news\/[A-Za-z0-9_-]+\/$/.test(url));
+  const productSitemapLocs = sitemapLocs.filter((url) => /\/p\/[A-Za-z0-9_-]+\/$/.test(url));
+  assert.equal(productSitemapLocs.length, 30,
+    "Sitemap should include each eligible product and exclude unpublished offers.");
+  assert(!productSitemapLocs.some((url) => /chatgpt|openai/i.test(url)),
+    "Sitemap must not expose unpublished OpenAI subscription offers.");
+  assert.equal(sitemapLocs.length, 5 + productSitemapLocs.length + newsSitemapLocs.length,
+    "Sitemap should contain home, four legal pages, all products, and only published news articles.");
+  assert(newsSitemapLocs.length > 0, "Sitemap must include published news articles.");
 
   const themeContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -282,12 +299,12 @@ try {
   await page.locator(".product-card").first().waitFor();
   assert.equal(await page.locator(".product-card").count(), 12,
     "Pages catalog should progressively render an initial batch of 12 products.");
-  assert.match(await page.locator(".catalog-meta p").innerText(), /Показано 12 із 35/,
+  assert.match(await page.locator(".catalog-meta p").innerText(), /Показано 12 із 30/,
     "Catalog result status should announce how many products are currently shown.");
   await page.getByRole("button", { name: "Показати ще 12 позицій" }).click();
   assert.equal(await page.locator(".product-card").count(), 24,
     "The catalog load-more action did not reveal the next batch.");
-  assert.match(await page.locator(".catalog-meta p").innerText(), /Показано 24 із 35/);
+  assert.match(await page.locator(".catalog-meta p").innerText(), /Показано 24 із 30/);
   const catalogSearch = page.getByRole("searchbox", { name: "Пошук" });
   await catalogSearch.fill("Gmail");
   await page.locator(".product-card").filter({ hasText: "Gmail пошта" }).waitFor();
@@ -296,11 +313,11 @@ try {
   assert.match(await page.locator(".catalog-meta p").innerText(), /Показано 1 із 1/);
   await catalogSearch.fill("");
   await page.waitForFunction(() => document.querySelectorAll(".product-card").length === 12);
-  while ((await page.locator(".product-card").count()) < 35) {
+  while ((await page.locator(".product-card").count()) < 30) {
     await page.getByRole("button", { name: /Показати ще/ }).click();
   }
-  assert.equal(await page.locator(".product-card").count(), 35,
-    "The catalog did not allow visitors to reveal every product.");
+  assert.equal(await page.locator(".product-card").count(), 30,
+    "The public catalog did not reveal every eligible product.");
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.locator(".product-card").first().waitFor();
   assert(
@@ -358,7 +375,7 @@ try {
   );
   await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
   await page.locator("body").click({ position: { x: 4, y: 4 } });
-  while ((await page.locator(".product-card").count()) < 35) {
+  while ((await page.locator(".product-card").count()) < 30) {
     await page.getByRole("button", { name: /Показати ще/ }).click();
   }
   assert.deepEqual(externalFontRequests, [], "The page should not depend on third-party font downloads.");
@@ -494,7 +511,7 @@ try {
       "Mobile menu primary action is smaller than a comfortable touch target.");
     await touchMenu.getByRole("button", { name: "Закрити меню" }).click();
 
-    const searchInput = touchPage.getByPlaceholder("Наприклад, ChatGPT, Netflix, VPN...");
+    const searchInput = touchPage.getByPlaceholder("Наприклад, Netflix, Grok, VPN...");
     assert.equal(await searchInput.getAttribute("type"), "search",
       "Catalog search does not use a mobile-friendly search input.");
     const searchFontSize = await searchInput.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
@@ -502,7 +519,7 @@ try {
     await searchInput.focus();
     assert.equal(await touchPage.locator(".mobile-cta").evaluate((element) => getComputedStyle(element).display), "none",
       "Fixed customer actions cover the catalog input while the mobile keyboard is open.");
-    await searchInput.fill("ChatGPT");
+    await searchInput.fill("Grok");
     await touchPage.waitForTimeout(350);
     assert(await touchPage.locator(".product-card").count() > 0,
       "Mobile search did not return matching products.");
@@ -606,6 +623,26 @@ try {
   );
   await page.locator(".desktop-nav").getByRole("link", { name: "Новини" }).click();
   await page.waitForURL(/#news$/);
+  await page.locator("#news").scrollIntoViewIfNeeded();
+  try {
+    await page.waitForFunction(
+      () => document.querySelector('.desktop-nav a[href="#news"]')?.getAttribute("aria-current") === "location",
+      { timeout: 3000 }
+    );
+  } catch (error) {
+    console.error("Desktop news navigation diagnostic:", JSON.stringify(await page.evaluate(() => ({
+      url: `${location.pathname}${location.search}${location.hash}`,
+      scrollY: window.scrollY,
+      newsRect: document.querySelector("#news")?.getBoundingClientRect().toJSON(),
+      navLinks: [...document.querySelectorAll(".desktop-nav a")].map((link) => ({
+        href: link.getAttribute("href"),
+        current: link.getAttribute("aria-current"),
+        className: link.className,
+        text: link.textContent
+      }))
+    }))));
+    throw error;
+  }
   assert.equal(
     await page.locator(".desktop-nav").getByRole("link", { name: "Новини" }).getAttribute("aria-current"),
     "location",
@@ -619,10 +656,10 @@ try {
   );
 
   if (apiSmokeEnabled) {
-    await page.getByPlaceholder("Наприклад, ChatGPT, Netflix, VPN...").fill("ChatGPT");
+    await page.getByPlaceholder("Наприклад, Netflix, Grok, VPN...").fill("Grok");
     await page.waitForTimeout(300);
-    const chatGptCard = page.locator(".product-card").filter({ hasText: "ChatGPT Plus" }).first();
-    await chatGptCard.getByRole("button", { name: "Замовити" }).click();
+    const grokCard = page.locator(".product-card").filter({ hasText: "Grok Super [особистий]" }).first();
+    await grokCard.getByRole("button", { name: "Замовити" }).click();
     await page.getByLabel("Ім'я").fill("Pages API QA");
     await page.getByLabel("Контакт").fill("@pages_api_qa");
     await page.getByLabel("Повідомлення").fill("Mocked Pages to API test");
@@ -657,7 +694,7 @@ try {
   await page.getByRole("heading", { name: /Grok Super/i }).first().waitFor();
   const productHtml = await (await fetch(`${baseUrl}p/grok-super-personal/`)).text();
   assert.match(productHtml, /<title>🏷 Grok Super \[особистий\] — Orenda Cherepashka<\/title>/);
-  assert.match(productHtml, /rel="canonical" href="https:\/\/anton5267\.github\.io\/orenda-cherepashka\/p\/grok-super-personal\//);
+  assert.ok(productHtml.includes(`rel="canonical" href="${publicSiteUrl}/p/grok-super-personal/`), "Product canonical URL does not match the configured public URL.");
   const productSchemas = [...productHtml.matchAll(
     /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g
   )].map((match) => JSON.parse(match[1]));
@@ -677,10 +714,29 @@ try {
   assert(gmailSchema?.offers?.every((offer) => offer.priceCurrency === "USD"));
   assert.equal((await fetch(`${baseUrl}legal/privacy/`)).status, 200, "Legal page deep link did not return HTTP 200.");
 
+  const telegramSnapshot = JSON.parse(readFileSync(resolve("public/telegram-news.json"), "utf8"));
+  const firstTelegramStory = telegramSnapshot.items?.find((item) => item?.isActive && item?.sourceType === "telegram");
+  assert(firstTelegramStory?.id, "The bundled Telegram feed should contain a published story for article-route QA.");
+  const newsRoute = `news/${encodeURIComponent(firstTelegramStory.id)}/`;
+  const newsHtmlResponse = await fetch(`${baseUrl}${newsRoute}`);
+  assert.equal(newsHtmlResponse.status, 200, "Static news article deep link did not return HTTP 200.");
+  const newsHtml = await newsHtmlResponse.text();
+  assert.ok(newsHtml.includes(`rel="canonical" href="${publicSiteUrl}/${newsRoute}"`),
+    "News article canonical URL does not match the configured public URL.");
+  assert.match(newsHtml, /<meta property="og:type" content="article" \/>/);
+  const newsArticleSchema = [...newsHtml.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)]
+    .map((match) => JSON.parse(match[1]))
+    .find((schema) => schema["@type"] === "NewsArticle");
+  assert.equal(newsArticleSchema?.headline, firstTelegramStory.title, "NewsArticle structured data has the wrong headline.");
+  assert(newsSitemapLocs.includes(`${publicSiteUrl}/${newsRoute}`), "News article is missing from the public sitemap.");
+  await page.goto(`${baseUrl}${newsRoute}`, { waitUntil: "domcontentloaded" });
+  await page.getByTestId("news-article").waitFor();
+
   const responsiveAudit = [];
   const responsivePages = [
     ["home", "", ".product-card"],
     ["product", "p/grok-super-personal/", ".product-detail-page"],
+    ["news", newsRoute, "[data-testid=\"news-article\"]"],
     ["privacy", "legal/privacy/", ".legal-page-card"],
     ["terms", "legal/terms/", ".legal-page-card"],
     ["refund", "legal/refund/", ".legal-page-card"],
@@ -816,7 +872,7 @@ try {
 
   console.log(JSON.stringify({
     ok: true,
-    productCount: 35,
+    productCount: 30,
     staticNewsStatus: feedStatus,
     expiredPromotionsMarked: true,
     productSeo: "accurate currency, package price and canonical URL",
@@ -827,6 +883,7 @@ try {
     pagesApiFlow: apiSmokeEnabled ? "offline fallback and successful retry" : undefined,
     contentSecurityPolicy: "no violations",
     productDeepLink: "ok",
+    newsArticle: "published story deep links, JSON-LD and sitemap verified",
     mobileOverflow: false,
     responsiveAudit
   }, null, 2));

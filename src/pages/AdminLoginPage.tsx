@@ -1,6 +1,7 @@
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api";
+import { isSupabaseConfigured } from "../supabase";
 import {
   ActionButton,
   ActionLink,
@@ -15,6 +16,7 @@ import { useToast } from "../toasts";
 export function AdminLoginPage() {
   const navigate = useNavigate();
   const { pushToast } = useToast();
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [sessionError, setSessionError] = useState("");
@@ -95,13 +97,18 @@ export function AdminLoginPage() {
 
     setError("");
     setRetryableLogin(false);
-  }, [password]);
+  }, [identifier, password]);
 
   const submitPassword = useCallback(
-    async (rawPassword: string) => {
-      if (rawPassword.trim().length < 4) {
+    async (rawIdentifier: string, rawPassword: string) => {
+      if (isSupabaseConfigured && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawIdentifier.trim())) {
         setRetryableLogin(false);
-        setError("Введи щонайменше 4 символи.");
+        setError("Вкажи коректну email-адресу адміністратора.");
+        return;
+      }
+      if (!rawPassword.trim() || (!isSupabaseConfigured && rawPassword.trim().length < 4)) {
+        setRetryableLogin(false);
+        setError(isSupabaseConfigured ? "Введи пароль адміністратора." : "Введи щонайменше 4 символи.");
         return;
       }
 
@@ -110,7 +117,10 @@ export function AdminLoginPage() {
       setRetryableLogin(false);
 
       try {
-        await api.login(rawPassword);
+        await api.login(
+          isSupabaseConfigured ? rawIdentifier.trim() : rawPassword,
+          isSupabaseConfigured ? rawPassword : undefined
+        );
         pushToast("Авторизація успішна.", "success");
         navigate("/admin/dashboard", { replace: true });
       } catch (caughtError) {
@@ -132,7 +142,7 @@ export function AdminLoginPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    await submitPassword(password);
+    await submitPassword(identifier, password);
   };
 
   return (
@@ -146,8 +156,9 @@ export function AdminLoginPage() {
 
           <h1>Вхід в адмін-панель</h1>
           <p className="auth-note">
-            Логін для одного адміністратора. У dev-режимі, якщо env не заданий,
-            пароль за замовчуванням: <code>admin1234</code>.
+            {isSupabaseConfigured
+              ? "Вхід для уповноваженого адміністратора. Реєстрація для відвідувачів вимкнена."
+              : "Локальний вхід в адмін-панель. У dev-режимі без налаштувань використовується тестовий пароль admin1234."}
           </p>
 
           {loading ? (
@@ -171,10 +182,23 @@ export function AdminLoginPage() {
                   }
                 />
               )}
+              {isSupabaseConfigured ? (
+                <TextField
+                  id="admin-email"
+                  label="Email адміністратора"
+                  type="email"
+                  autoComplete="username"
+                  value={identifier}
+                  onChange={(event) => setIdentifier(event.target.value)}
+                  placeholder="admin@example.com"
+                  required
+                />
+              ) : null}
               <TextField
                 id="admin-password"
                 label="Пароль"
                 type="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="Введіть пароль"
@@ -193,7 +217,7 @@ export function AdminLoginPage() {
                         size="compact"
                         type="button"
                         disabled={submitting}
-                        onClick={() => void submitPassword(password)}
+                        onClick={() => void submitPassword(identifier, password)}
                       >
                         Повторити вхід
                       </ActionButton>
@@ -210,6 +234,11 @@ export function AdminLoginPage() {
                   Назад на сайт
                 </ActionLink>
               </div>
+              {isSupabaseConfigured ? (
+                <ActionLink variant="secondary" href="/admin/reset-password">
+                  Не пам’ятаєш пароль? Відновити доступ
+                </ActionLink>
+              ) : null}
             </form>
           )}
         </section>

@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 
-const publicSiteUrl = "https://anton5267.github.io/orenda-cherepashka";
+const publicSiteUrl = "https://orenda-cherepashka-live.pages.dev";
 const renderApiUrl = "https://orenda-cherepashka.onrender.com";
 process.env.NODE_ENV = "development";
 process.env.PUBLIC_SITE_URL = publicSiteUrl;
 process.env.RENDER_EXTERNAL_URL = renderApiUrl;
+delete process.env.PUBLIC_API_ALLOWED_ORIGINS;
 delete process.env.TELEGRAM_WEBHOOK_BASE_URL;
 
 const { env } = await import("../server-dist/server/env.js?telegram-webhook-smoke");
@@ -14,7 +15,8 @@ const {
   resolveTelegramWebhookBaseUrl
 } = await import("../server-dist/server/telegramWebhookConfig.js");
 
-assert.equal(env.publicSiteUrl, publicSiteUrl, "Canonical storefront URL should remain the GitHub Pages URL.");
+assert.equal(env.publicSiteUrl, publicSiteUrl, "Canonical storefront URL should use the selected Cloudflare Pages host.");
+assert.deepEqual(env.publicApiAllowedOrigins, [publicSiteUrl], "The default API CORS origin should match the selected Cloudflare Pages host.");
 assert.equal(env.telegramWebhookBaseUrl, renderApiUrl, "Render's API URL should be used for the Telegram callback.");
 assert.equal(hasTelegramWebhookCredentials("", ""), false);
 assert.equal(hasTelegramWebhookCredentials("", "secret_token"), false);

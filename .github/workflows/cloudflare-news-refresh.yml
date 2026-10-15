@@ -1,0 +1,27 @@
+name: Refresh Cloudflare storefront news
+
+on:
+  schedule:
+    - cron: "0 */4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-news-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Trigger Cloudflare Pages rebuild
+        env:
+          PAGES_BUILD_HOOK: ${{ secrets.CLOUDFLARE_PAGES_BUILD_HOOK }}
+        run: |
+          if [ -z "$PAGES_BUILD_HOOK" ]; then
+            echo "::notice::Set CLOUDFLARE_PAGES_BUILD_HOOK after creating the Cloudflare Pages project."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --request POST "$PAGES_BUILD_HOOK"

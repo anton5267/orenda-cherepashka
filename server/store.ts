@@ -288,6 +288,10 @@ function mapSettings(row: Record<string, unknown>): SiteSettings {
     telegramNewsChannelUrl: String(
       row.telegram_news_channel_url ?? "https://t.me/arenda_cherepashka"
     ),
+    telegramReviewsChannelUrl: String(
+      row.telegram_reviews_channel_url ?? "https://t.me/cherepashka_vidguk"
+    ),
+    telegramAutoPublish: intToBool(Number(row.telegram_auto_publish ?? 1)),
     heroTitle: String(row.hero_title),
     heroSubtitle: String(row.hero_subtitle),
     footerDescription: String(row.footer_description),
@@ -423,6 +427,8 @@ function ensureSchema() {
       telegram_channel TEXT NOT NULL,
       telegram_contact_url TEXT,
       telegram_news_channel_url TEXT,
+      telegram_reviews_channel_url TEXT,
+      telegram_auto_publish INTEGER NOT NULL DEFAULT 1,
       hero_title TEXT NOT NULL,
       hero_subtitle TEXT NOT NULL,
       footer_description TEXT NOT NULL,
@@ -560,6 +566,8 @@ function ensureCompatibilityMigrations() {
   ensureColumn("news", "updated_at", "TEXT");
   ensureColumn("settings", "telegram_contact_url", "TEXT");
   ensureColumn("settings", "telegram_news_channel_url", "TEXT");
+  ensureColumn("settings", "telegram_reviews_channel_url", "TEXT");
+  ensureColumn("settings", "telegram_auto_publish", "INTEGER NOT NULL DEFAULT 1");
   ensureColumn("news", "source_type", "TEXT");
   ensureColumn("news", "source_url", "TEXT");
   ensureColumn("news", "source_chat_id", "INTEGER");
@@ -585,8 +593,8 @@ function ensureCompatibilityMigrations() {
   db.prepare("UPDATE faqs SET updated_at = COALESCE(updated_at, ?)").run(timestamp);
   db.prepare("UPDATE news SET updated_at = COALESCE(updated_at, ?)").run(timestamp);
   db.prepare(
-    "UPDATE settings SET telegram_contact_url = COALESCE(NULLIF(telegram_contact_url, ''), ?), telegram_news_channel_url = COALESCE(NULLIF(telegram_news_channel_url, ''), ?) WHERE singleton_key = 1"
-  ).run("https://t.me/yts_nnn", "https://t.me/arenda_cherepashka");
+    "UPDATE settings SET telegram_contact_url = COALESCE(NULLIF(telegram_contact_url, ''), ?), telegram_news_channel_url = COALESCE(NULLIF(telegram_news_channel_url, ''), ?), telegram_reviews_channel_url = COALESCE(NULLIF(telegram_reviews_channel_url, ''), ?), telegram_auto_publish = COALESCE(telegram_auto_publish, 1) WHERE singleton_key = 1"
+  ).run("https://t.me/yts_nnn", "https://t.me/arenda_cherepashka", "https://t.me/cherepashka_vidguk");
   db.prepare("UPDATE news SET source_type = COALESCE(NULLIF(source_type, ''), 'manual')").run();
   db.exec(
     "CREATE UNIQUE INDEX IF NOT EXISTS news_telegram_source_idx ON news(source_chat_id, source_message_id) WHERE source_type = 'telegram' AND source_chat_id IS NOT NULL AND source_message_id IS NOT NULL"
@@ -614,18 +622,22 @@ function ensureSeed() {
           telegram_channel,
           telegram_contact_url,
           telegram_news_channel_url,
+          telegram_reviews_channel_url,
+          telegram_auto_publish,
           hero_title,
           hero_subtitle,
           footer_description,
           lead_title,
           lead_subtitle
-        ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `
     ).run(
       seedSiteSettings.siteName,
       seedSiteSettings.telegramContactUrl,
       seedSiteSettings.telegramContactUrl,
       seedSiteSettings.telegramNewsChannelUrl,
+      seedSiteSettings.telegramReviewsChannelUrl,
+      boolToInt(seedSiteSettings.telegramAutoPublish),
       seedSiteSettings.heroTitle,
       seedSiteSettings.heroSubtitle,
       seedSiteSettings.footerDescription,
@@ -825,18 +837,20 @@ function migrateSeedCatalogPrices() {
     const syncProduct = db.prepare(
       `UPDATE products SET
         name = ?, slug = ?, category_id = ?, summary = ?, details_json = ?,
-        logo = CASE WHEN ? = '' THEN logo ELSE ? END, sort_order = ?, updated_at = ?
+        logo = CASE WHEN ? = '' THEN logo ELSE ? END,
+        is_active = CASE WHEN ? = 0 THEN 0 ELSE is_active END,
+        sort_order = ?, updated_at = ?
        WHERE id = ?`
     );
     const upsertPricing = db.prepare(
       `INSERT INTO pricing_options (
         id, product_id, label, price, currency, compare_at, sort_order, is_active
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         product_id = excluded.product_id, label = excluded.label,
         price = excluded.price, currency = excluded.currency,
         compare_at = excluded.compare_at, sort_order = excluded.sort_order,
-        is_active = 1`
+        is_active = excluded.is_active`
     );
 
     for (const product of seedProducts) {
@@ -861,6 +875,7 @@ function migrateSeedCatalogPrices() {
         JSON.stringify(product.details),
         product.logo,
         product.logo,
+        boolToInt(product.isActive),
         product.sortOrder,
         timestamp,
         product.id
@@ -875,7 +890,8 @@ function migrateSeedCatalogPrices() {
           option.price,
           option.currency,
           option.compareAt,
-          option.sortOrder
+          option.sortOrder,
+          boolToInt(product.isActive)
         );
         return id;
       });
@@ -886,6 +902,27 @@ function migrateSeedCatalogPrices() {
       ).run(product.id, ...pricingIds);
     }
 
+    db.prepare("INSERT INTO app_migrations (id, applied_at) VALUES (?, ?)")
+      .run(migrationId, timestamp);
+  });
+
+  applyMigration();
+}
+
+function migrateRestrictedOpenAiOffers() {
+  const migrationId = "restricted-openai-offers-v1";
+  if (db.prepare("SELECT id FROM app_migrations WHERE id = ?").get(migrationId)) {
+    return;
+  }
+
+  const timestamp = nowIso();
+  const applyMigration = db.transaction(() => {
+    db.prepare(
+      "UPDATE pricing_options SET is_active = 0 WHERE product_id IN (SELECT id FROM products WHERE id LIKE 'chatgpt-%')"
+    ).run();
+    db.prepare(
+      "UPDATE products SET is_active = 0, updated_at = ? WHERE id LIKE 'chatgpt-%'"
+    ).run(timestamp);
     db.prepare("INSERT INTO app_migrations (id, applied_at) VALUES (?, ?)")
       .run(migrationId, timestamp);
   });
@@ -1420,6 +1457,7 @@ ensureSchema();
 ensureCompatibilityMigrations();
 ensureSeed();
 migrateSeedCatalogPrices();
+migrateRestrictedOpenAiOffers();
 ensureLeadItemsBackfill();
 
 export function getSiteSettings() {
@@ -2090,7 +2128,7 @@ export function updateSiteSettings(payload: Partial<SiteSettings>) {
   db.prepare(
     `
       UPDATE settings
-      SET site_name = ?, telegram_contact_url = ?, telegram_news_channel_url = ?, telegram_channel = ?, hero_title = ?, hero_subtitle = ?, footer_description = ?, lead_title = ?, lead_subtitle = ?
+      SET site_name = ?, telegram_contact_url = ?, telegram_news_channel_url = ?, telegram_reviews_channel_url = ?, telegram_auto_publish = ?, telegram_channel = ?, hero_title = ?, hero_subtitle = ?, footer_description = ?, lead_title = ?, lead_subtitle = ?
       WHERE singleton_key = 1
     `
   ).run(
@@ -2101,6 +2139,10 @@ export function updateSiteSettings(payload: Partial<SiteSettings>) {
     payload.telegramNewsChannelUrl
       ? normalizeText(payload.telegramNewsChannelUrl, "telegramNewsChannelUrl")
       : current.telegramNewsChannelUrl,
+    payload.telegramReviewsChannelUrl
+      ? normalizeText(payload.telegramReviewsChannelUrl, "telegramReviewsChannelUrl")
+      : current.telegramReviewsChannelUrl,
+    boolToInt(payload.telegramAutoPublish ?? current.telegramAutoPublish),
     payload.telegramContactUrl
       ? normalizeText(payload.telegramContactUrl, "telegramContactUrl")
       : current.telegramContactUrl,

@@ -1,16 +1,22 @@
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { seedProducts } from "../shared/seedData.js";
+import { loadProductsForMetadata } from "./productMetadataSource.js";
+import { loadNewsForMetadata } from "./newsMetadataSource.js";
 
 const distDir = resolve("dist");
 const indexPath = resolve(distDir, "index.html");
-const pagesBaseUrl = "https://anton5267.github.io/orenda-cherepashka";
+const pagesBaseUrl = (process.env.PUBLIC_SITE_URL ?? "https://orenda-cherepashka-live.pages.dev")
+  .trim()
+  .replace(/\/+$/, "");
 const legalPages = [
   { slug: "privacy", title: "Політика конфіденційності" },
   { slug: "terms", title: "Умови оренди" },
   { slug: "refund", title: "Умови заміни та повернення" },
   { slug: "contacts", title: "Контакти продавця" }
 ];
+
+const channelSnapshot = JSON.parse(await readFile(resolve("public/telegram-news.json"), "utf8")) as { items?: unknown };
+const channelItems = Array.isArray(channelSnapshot.items) ? channelSnapshot.items : [];
 
 function escapeHtml(value: string) {
   return value
@@ -27,18 +33,19 @@ function safeJson(value: unknown) {
 
 function withPageMetadata(
   html: string,
-  { title, description, url, schema }: {
+  { title, description, url, schema, openGraphType }: {
     title: string;
     description: string;
     url: string;
     schema?: unknown;
+    openGraphType?: "website" | "product" | "article";
   }
 ) {
   let page = html
     .replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`)
     .replace(/<meta\s+name="description"[^>]*\/>/, `<meta name="description" content="${escapeHtml(description)}" />`)
     .replace(/<link\s+rel="canonical"[^>]*\/>/, `<link rel="canonical" href="${escapeHtml(url)}" />`)
-    .replace(/<meta\s+property="og:type"[^>]*\/>/, `<meta property="og:type" content="${Array.isArray(schema) ? "product" : "website"}" />`)
+    .replace(/<meta\s+property="og:type"[^>]*\/>/, `<meta property="og:type" content="${openGraphType ?? (Array.isArray(schema) ? "product" : "website")}" />`)
     .replace(/<meta\s+property="og:title"[^>]*\/>/, `<meta property="og:title" content="${escapeHtml(title)}" />`)
     .replace(/<meta\s+property="og:description"[^>]*\/>/, `<meta property="og:description" content="${escapeHtml(description)}" />`)
     .replace(/<meta\s+property="og:url"[^>]*\/>/, `<meta property="og:url" content="${escapeHtml(url)}" />`)
@@ -57,6 +64,17 @@ function withPageMetadata(
 }
 
 const sourceHtml = await readFile(indexPath, "utf8");
+const productsForMetadata = await loadProductsForMetadata({
+  supabaseUrl: process.env.VITE_SUPABASE_URL,
+  publishableKey: process.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  mode: process.env.SUPABASE_PRODUCT_METADATA_MODE === "seed" ? "seed" : "auto"
+});
+const newsForMetadata = await loadNewsForMetadata({
+  supabaseUrl: process.env.VITE_SUPABASE_URL,
+  publishableKey: process.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  channelItems,
+  mode: process.env.SUPABASE_PRODUCT_METADATA_MODE === "seed" ? "seed" : "auto"
+});
 const rootUrl = `${pagesBaseUrl}/`;
 const homeHtml = withPageMetadata(sourceHtml, {
   title: "Orenda Cherepashka — оренда підписок і цифрових сервісів",
@@ -68,7 +86,7 @@ await writeFile(indexPath, homeHtml);
 await copyFile(indexPath, resolve(distDir, "404.html"));
 
 const productUrls: string[] = [];
-for (const product of seedProducts.filter((item) => item.isActive)) {
+for (const product of productsForMetadata) {
   const url = `${pagesBaseUrl}/p/${product.slug}/`;
   const title = `${product.name} — Orenda Cherepashka`;
   const description = product.summary || `Варіанти та ціни ${product.name} в каталозі Orenda Cherepashka.`;
@@ -110,6 +128,35 @@ for (const product of seedProducts.filter((item) => item.isActive)) {
   productUrls.push(url);
 }
 
+const newsUrls: string[] = [];
+for (const item of newsForMetadata) {
+  const url = `${pagesBaseUrl}/news/${encodeURIComponent(item.id)}/`;
+  const title = `${item.title} — Orenda Cherepashka`;
+  const description = item.content.replace(/\s+/g, " ").trim().slice(0, 180) || `Оновлення Orenda Cherepashka: ${item.title}.`;
+  const articleSchema = {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    headline: item.title,
+    description,
+    articleBody: item.content,
+    ...(item.publishedAt ? { datePublished: item.publishedAt } : {}),
+    url,
+    mainEntityOfPage: url,
+    publisher: { "@type": "Organization", name: "Orenda Cherepashka", url: `${pagesBaseUrl}/` }
+  };
+  const newsHtml = withPageMetadata(sourceHtml, {
+    title,
+    description,
+    url,
+    schema: articleSchema,
+    openGraphType: "article"
+  });
+  const newsPath = resolve(distDir, "news", item.id, "index.html");
+  await mkdir(dirname(newsPath), { recursive: true });
+  await writeFile(newsPath, newsHtml);
+  newsUrls.push(url);
+}
+
 const legalUrls = legalPages.map(({ slug }) => `${pagesBaseUrl}/legal/${slug}/`);
 for (const pageInfo of legalPages) {
   const url = `${pagesBaseUrl}/legal/${pageInfo.slug}/`;
@@ -123,7 +170,7 @@ for (const pageInfo of legalPages) {
   await writeFile(pagePath, html);
 }
 
-const sitemapUrls = [rootUrl, ...legalUrls, ...productUrls];
+const sitemapUrls = [rootUrl, ...legalUrls, ...productUrls, ...newsUrls];
 const sitemap = [
   '<?xml version="1.0" encoding="UTF-8"?>',
   '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
@@ -136,4 +183,4 @@ await writeFile(
   `User-agent: *\nAllow: /\nDisallow: /admin\nSitemap: ${pagesBaseUrl}/sitemap.xml\n`
 );
 
-console.log(`Generated ${productUrls.length} product pages, ${legalUrls.length} legal pages, robots.txt, and sitemap.xml.`);
+console.log(`Generated ${productUrls.length} product pages, ${newsUrls.length} news pages, ${legalUrls.length} legal pages, robots.txt, and sitemap.xml.`);

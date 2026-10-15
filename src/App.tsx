@@ -11,7 +11,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { ThemeProvider } from "./theme";
 import { ToastProvider } from "./toasts";
 import { HomePage } from "./pages/HomePage";
-import { api, staticSiteBasePath } from "./api";
+import { api, isSupabaseConfigured, staticSiteBasePath } from "./api";
 import { readUtmAttribution } from "./attribution";
 
 const isStaticSite = import.meta.env.VITE_STATIC_SITE === "true";
@@ -19,11 +19,19 @@ const isStaticSite = import.meta.env.VITE_STATIC_SITE === "true";
 const ProductPage = lazy(() =>
   import("./pages/ProductPage").then(({ ProductPage }) => ({ default: ProductPage }))
 );
+const NewsPage = lazy(() =>
+  import("./pages/NewsPage").then(({ NewsPage }) => ({ default: NewsPage }))
+);
 const LegalPage = lazy(() =>
   import("./pages/LegalPage").then(({ LegalPage }) => ({ default: LegalPage }))
 );
 const AdminLoginPage = lazy(() =>
   import("./pages/AdminLoginPage").then(({ AdminLoginPage }) => ({ default: AdminLoginPage }))
+);
+const AdminPasswordRecoveryPage = lazy(() =>
+  import("./pages/AdminPasswordRecoveryPage").then(({ AdminPasswordRecoveryPage }) => ({
+    default: AdminPasswordRecoveryPage
+  }))
 );
 const { AdminGuard, AdminLayout } = {
   AdminGuard: lazy(() =>
@@ -70,6 +78,29 @@ function PublicAnalyticsLayout() {
   const location = useLocation();
 
   useEffect(() => {
+    const canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (!canonical) return;
+    const basePath = isStaticSite ? staticSiteBasePath : "";
+    const routePath = location.pathname === "/"
+      ? "/"
+      : `${location.pathname.replace(/\/+$/, "")}/`;
+    canonical.href = new URL(`${basePath}${routePath}`, window.location.origin).toString();
+    const ogUrl = document.head.querySelector<HTMLMetaElement>('meta[property="og:url"]');
+    if (ogUrl) ogUrl.content = canonical.href;
+    const ogType = document.head.querySelector<HTMLMetaElement>('meta[property="og:type"]');
+    if (ogType) ogType.content = "website";
+    if (location.pathname === "/") {
+      document.title = "Orenda Cherepashka — оренда підписок";
+      const description = document.head.querySelector<HTMLMetaElement>('meta[name="description"]');
+      if (description) description.content = "Каталог цифрових підписок із вибором тарифу, новинами та замовленням через Telegram.";
+      const ogTitle = document.head.querySelector<HTMLMetaElement>('meta[property="og:title"]');
+      if (ogTitle) ogTitle.content = document.title;
+      const ogDescription = document.head.querySelector<HTMLMetaElement>('meta[property="og:description"]');
+      if (ogDescription) ogDescription.content = description?.content ?? "";
+    }
+  }, [location.pathname]);
+
+  useEffect(() => {
     void api.trackEvent({
       eventName: "page_view",
       path: location.pathname,
@@ -104,13 +135,18 @@ const router = createBrowserRouter(
       <Route element={<PublicAnalyticsLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/p/:slug" element={<ProductPage />} />
+        <Route path="/news/:id" element={<NewsPage />} />
         <Route path="/legal/:slug" element={<LegalPage />} />
       </Route>
       <Route
         path="/admin/login"
-        element={isStaticSite ? <Navigate to="/" replace /> : <AdminLoginPage />}
+        element={isStaticSite && !isSupabaseConfigured ? <Navigate to="/" replace /> : <AdminLoginPage />}
       />
-      <Route element={isStaticSite ? <Navigate to="/" replace /> : <AdminGuard />}>
+      <Route
+        path="/admin/reset-password"
+        element={isStaticSite && !isSupabaseConfigured ? <Navigate to="/" replace /> : <AdminPasswordRecoveryPage />}
+      />
+      <Route element={isStaticSite && !isSupabaseConfigured ? <Navigate to="/" replace /> : <AdminGuard />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboardPage />} />
@@ -126,7 +162,7 @@ const router = createBrowserRouter(
       <Route path="*" element={<Navigate to="/" replace />} />
     </>
   ),
-  { basename: isStaticSite ? staticSiteBasePath : undefined }
+  { basename: isStaticSite ? staticSiteBasePath || "/" : undefined }
 );
 
 function App() {

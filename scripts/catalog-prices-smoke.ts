@@ -56,6 +56,20 @@ for (const product of seedProducts) {
   );
 }
 
+for (const id of [
+  "chatgpt-pro-shared",
+  "chatgpt-plus-shared",
+  "chatgpt-plus-shared-5",
+  "chatgpt-plus-personal-no-guarantee",
+  "chatgpt-plus-personal-15-day-guarantee"
+]) {
+  assert.equal(
+    seedProducts.find((product) => product.id === id)?.isActive,
+    false,
+    `OpenAI subscription offer ${id} must remain unpublished in the public seed.`
+  );
+}
+
 const grok = seedProducts.find((product) => product.id === "grok-super");
 assert.equal(grok?.pricingOptions[1]?.label, "3 міс · за пакет");
 assert.match(grok?.summary ?? "", /2200 грн за пакет на 3 місяці/);

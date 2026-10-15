@@ -6,6 +6,13 @@ data/
 .local/
 artifacts/
 .env
+.env.*
+!.env.example
 .env.docker
+supabase/.temp/
+supabase/.branches/
+supabase/.env
+supabase/.env.*
+!supabase/.env.example
 backups/
 *.tsbuildinfo
