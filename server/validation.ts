@@ -133,13 +133,16 @@ export function validatePublicAnalyticsEvent(value: unknown): PublicAnalyticsEve
 
 export function validateSettingsPayload(value: unknown) {
   const body = record(value);
-  for (const field of ["telegramContactUrl", "telegramNewsChannelUrl"]) {
+  for (const field of ["telegramContactUrl", "telegramNewsChannelUrl", "telegramReviewsChannelUrl"]) {
     if (body[field] !== undefined) {
       textField(body, field, 8, 300);
       if (!/^https:\/\/(?:www\.)?t\.me\/[\w\d_]+$/i.test(String(body[field]).trim())) {
         throw new HttpError(400, `Поле "${field}" має бути коректним Telegram URL.`);
       }
     }
+  }
+  if (body.telegramAutoPublish !== undefined && typeof body.telegramAutoPublish !== "boolean") {
+    throw new HttpError(400, 'Поле "telegramAutoPublish" має бути логічним значенням.');
   }
 }
 

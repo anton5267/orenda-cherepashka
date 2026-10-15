@@ -5222,6 +5222,27 @@ export function AdminSettingsPage() {
                   }
                 />
               </label>
+              <label>
+                Telegram-канал відгуків
+                <input
+                  type="url"
+                  value={settings.telegramReviewsChannelUrl}
+                  onChange={(event) =>
+                    updateSettingsField("telegramReviewsChannelUrl", event.target.value)
+                  }
+                  required
+                />
+              </label>
+              <label className="admin-toggle-field checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={settings.telegramAutoPublish}
+                  onChange={(event) =>
+                    updateSettingsField("telegramAutoPublish", event.target.checked)
+                  }
+                />
+                Автоматично публікувати новини з Telegram
+              </label>
               <label className={looksCorruptedText(settings.heroTitle) ? "is-invalid" : ""}>
                 Заголовок hero
                 <input

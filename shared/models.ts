@@ -14,6 +14,8 @@ export interface SiteSettings {
   siteName: string;
   telegramContactUrl: string;
   telegramNewsChannelUrl: string;
+  telegramReviewsChannelUrl: string;
+  telegramAutoPublish: boolean;
   heroTitle: string;
   heroSubtitle: string;
   footerDescription: string;

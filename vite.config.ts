@@ -4,10 +4,14 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 const rootDir = fileURLToPath(new URL(".", import.meta.url));
+const configuredBasePath = process.env.VITE_BASE_PATH?.trim();
+const defaultBasePath = process.env.VITE_STATIC_SITE === "true" ? "/orenda-cherepashka/" : "/";
+const basePath = configuredBasePath || defaultBasePath;
+const base = basePath === "/" ? "/" : `/${basePath.replace(/^\/+|\/+$/g, "")}/`;
 
 export default defineConfig({
   plugins: [react()],
-  base: process.env.VITE_STATIC_SITE === "true" ? "/orenda-cherepashka/" : "/",
+  base,
   server: {
     host: "127.0.0.1",
     port: 4173,

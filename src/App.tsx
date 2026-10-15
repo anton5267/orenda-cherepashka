@@ -11,7 +11,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { ThemeProvider } from "./theme";
 import { ToastProvider } from "./toasts";
 import { HomePage } from "./pages/HomePage";
-import { api, staticSiteBasePath } from "./api";
+import { api, isSupabaseConfigured, staticSiteBasePath } from "./api";
 import { readUtmAttribution } from "./attribution";
 
 const isStaticSite = import.meta.env.VITE_STATIC_SITE === "true";
@@ -108,9 +108,9 @@ const router = createBrowserRouter(
       </Route>
       <Route
         path="/admin/login"
-        element={isStaticSite ? <Navigate to="/" replace /> : <AdminLoginPage />}
+        element={isStaticSite && !isSupabaseConfigured ? <Navigate to="/" replace /> : <AdminLoginPage />}
       />
-      <Route element={isStaticSite ? <Navigate to="/" replace /> : <AdminGuard />}>
+      <Route element={isStaticSite && !isSupabaseConfigured ? <Navigate to="/" replace /> : <AdminGuard />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboardPage />} />
@@ -126,7 +126,7 @@ const router = createBrowserRouter(
       <Route path="*" element={<Navigate to="/" replace />} />
     </>
   ),
-  { basename: isStaticSite ? staticSiteBasePath : undefined }
+  { basename: isStaticSite ? staticSiteBasePath || "/" : undefined }
 );
 
 function App() {

@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const apiBaseUrl = "https://orenda-cherepashka.onrender.com";
+const supabaseUrl = "https://pages-api-smoke.supabase.co";
 
 function runScript(scriptPath, env) {
   const result = spawnSync(process.execPath, [resolve(rootDir, scriptPath)], {
@@ -19,7 +19,8 @@ function runScript(scriptPath, env) {
 const buildEnv = {
   ...process.env,
   VITE_STATIC_SITE: "true",
-  VITE_API_BASE_URL: apiBaseUrl
+  VITE_SUPABASE_URL: supabaseUrl,
+  VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_pages_smoke"
 };
 
 runScript("scripts/build-pages.mjs", buildEnv);

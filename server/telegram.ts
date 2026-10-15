@@ -1,7 +1,8 @@
 import { env } from "./env.js";
 import {
   recordTelegramWebhookEvent,
-  upsertTelegramNews
+  upsertTelegramNews,
+  getSiteSettings
 } from "./store.js";
 import type { Lead, TelegramWebhookUpdate } from "../shared/models.js";
 import { formatCurrencyAmount } from "../shared/priceFormat.js";
@@ -93,7 +94,7 @@ export async function handleTelegramUpdate(update: TelegramWebhookUpdate) {
     return { ignored: true, forbidden: true };
   }
 
-  if (!env.telegramAutoPublish) {
+  if (!env.telegramAutoPublish || !getSiteSettings().telegramAutoPublish) {
     recordTelegramWebhookEvent({
       updateId: details.updateId,
       eventType: details.eventType,

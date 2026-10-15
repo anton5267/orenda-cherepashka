@@ -4,7 +4,9 @@ import { seedProducts } from "../shared/seedData.js";
 
 const distDir = resolve("dist");
 const indexPath = resolve(distDir, "index.html");
-const pagesBaseUrl = "https://anton5267.github.io/orenda-cherepashka";
+const pagesBaseUrl = (process.env.PUBLIC_SITE_URL ?? "https://anton5267.github.io/orenda-cherepashka")
+  .trim()
+  .replace(/\/+$/, "");
 const legalPages = [
   { slug: "privacy", title: "Політика конфіденційності" },
   { slug: "terms", title: "Умови оренди" },

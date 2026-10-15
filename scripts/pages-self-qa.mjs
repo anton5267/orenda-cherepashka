@@ -4,9 +4,16 @@ import { resolve } from "node:path";
 import { chromium } from "playwright";
 
 const distDir = resolve("dist");
+const configuredBasePath = (process.env.PAGES_BASE_PATH ?? "/orenda-cherepashka")
+  .trim()
+  .replace(/^\/+|\/+$/g, "");
+const routePrefix = configuredBasePath ? `/${configuredBasePath}` : "";
+const publicSiteUrl = (process.env.PUBLIC_SITE_URL ?? "https://anton5267.github.io/orenda-cherepashka")
+  .trim()
+  .replace(/\/+$/, "");
 const app = express();
-app.use("/orenda-cherepashka", express.static(distDir));
-app.use("/orenda-cherepashka", (_request, response) => {
+app.use(routePrefix || "/", express.static(distDir));
+app.use(routePrefix || "/", (_request, response) => {
   response.sendFile(resolve(distDir, "index.html"));
 });
 
@@ -31,14 +38,14 @@ let themeContrastAudit;
 async function installPagesApiMock(page, pageOrigin) {
   if (!apiSmokeEnabled) return;
 
-  await page.route("https://orenda-cherepashka.onrender.com/api/**", async (route) => {
+  await page.route("https://pages-api-smoke.supabase.co/functions/v1/**", async (route) => {
     const request = route.request();
     const requestUrl = new URL(request.url());
     const origin = request.headers().origin ?? pageOrigin;
     const corsHeaders = {
       "Access-Control-Allow-Origin": origin,
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Headers": "Authorization, Apikey, Content-Type, X-Client-Info",
       "Content-Type": "application/json"
     };
 
@@ -47,7 +54,7 @@ async function installPagesApiMock(page, pageOrigin) {
       return;
     }
 
-    if (request.method() === "POST" && requestUrl.pathname === "/api/leads") {
+    if (request.method() === "POST" && requestUrl.pathname.endsWith("/orenda-public") && requestUrl.searchParams.get("path") === "/api/leads") {
       mockedLeadPostCount += 1;
       const payload = JSON.parse(request.postData() ?? "{}");
       mockedLeadPayloads.push(payload);
@@ -100,7 +107,7 @@ try {
       contentSecurityErrors.push(message.text());
     }
   });
-  const baseUrl = `http://127.0.0.1:${address.port}/orenda-cherepashka/`;
+  const baseUrl = `http://127.0.0.1:${address.port}${routePrefix}/`;
   const initialUrl = apiSmokeEnabled
     ? `${baseUrl}?utm_source=pages-qa&utm_medium=smoke&utm_campaign=pages-api`
     : baseUrl;
@@ -110,9 +117,9 @@ try {
 
   const homeHtml = await (await fetch(baseUrl)).text();
   assert.match(homeHtml, /name="robots" content="index,follow"/);
-  assert.match(homeHtml, /rel="canonical" href="https:\/\/anton5267\.github\.io\/orenda-cherepashka\//);
+  assert.ok(homeHtml.includes(`rel="canonical" href="${publicSiteUrl}/"`), "Home canonical URL does not match the configured public URL.");
   assert.match(homeHtml, /http-equiv="Content-Security-Policy"/);
-  assert.match(homeHtml, /connect-src[^\"]+orenda-cherepashka\.onrender\.com/);
+  assert.match(homeHtml, /connect-src[^\"]+\*\.supabase\.co/);
   const themeBootstrapPosition = homeHtml.indexOf('<script id="theme-bootstrap">');
   const themeStylesheetPosition = homeHtml.indexOf('rel="stylesheet"');
   const themeAppModulePosition = homeHtml.lastIndexOf('type="module"');
@@ -127,7 +134,7 @@ try {
   const robotsResponse = await fetch(`${baseUrl}robots.txt`);
   const robotsText = await robotsResponse.text();
   assert.equal(robotsResponse.status, 200, "GitHub Pages robots.txt did not return HTTP 200.");
-  assert.match(robotsText, /Sitemap: https:\/\/anton5267\.github\.io\/orenda-cherepashka\/sitemap\.xml/);
+  assert.ok(robotsText.includes(`Sitemap: ${publicSiteUrl}/sitemap.xml`), "robots.txt sitemap URL does not match the configured public URL.");
   const sitemapResponse = await fetch(`${baseUrl}sitemap.xml`);
   const sitemapText = await sitemapResponse.text();
   assert.equal(sitemapResponse.status, 200, "GitHub Pages sitemap.xml did not return HTTP 200.");
@@ -606,6 +613,26 @@ try {
   );
   await page.locator(".desktop-nav").getByRole("link", { name: "Новини" }).click();
   await page.waitForURL(/#news$/);
+  await page.locator("#news").scrollIntoViewIfNeeded();
+  try {
+    await page.waitForFunction(
+      () => document.querySelector('.desktop-nav a[href="#news"]')?.getAttribute("aria-current") === "location",
+      { timeout: 3000 }
+    );
+  } catch (error) {
+    console.error("Desktop news navigation diagnostic:", JSON.stringify(await page.evaluate(() => ({
+      url: `${location.pathname}${location.search}${location.hash}`,
+      scrollY: window.scrollY,
+      newsRect: document.querySelector("#news")?.getBoundingClientRect().toJSON(),
+      navLinks: [...document.querySelectorAll(".desktop-nav a")].map((link) => ({
+        href: link.getAttribute("href"),
+        current: link.getAttribute("aria-current"),
+        className: link.className,
+        text: link.textContent
+      }))
+    }))));
+    throw error;
+  }
   assert.equal(
     await page.locator(".desktop-nav").getByRole("link", { name: "Новини" }).getAttribute("aria-current"),
     "location",
@@ -657,7 +684,7 @@ try {
   await page.getByRole("heading", { name: /Grok Super/i }).first().waitFor();
   const productHtml = await (await fetch(`${baseUrl}p/grok-super-personal/`)).text();
   assert.match(productHtml, /<title>🏷 Grok Super \[особистий\] — Orenda Cherepashka<\/title>/);
-  assert.match(productHtml, /rel="canonical" href="https:\/\/anton5267\.github\.io\/orenda-cherepashka\/p\/grok-super-personal\//);
+  assert.ok(productHtml.includes(`rel="canonical" href="${publicSiteUrl}/p/grok-super-personal/`), "Product canonical URL does not match the configured public URL.");
   const productSchemas = [...productHtml.matchAll(
     /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g
   )].map((match) => JSON.parse(match[1]));

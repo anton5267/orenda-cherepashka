@@ -7,5 +7,10 @@ data/
 artifacts/
 .env
 .env.docker
+supabase/.temp/
+supabase/.branches/
+supabase/.env
+supabase/.env.*
+!supabase/.env.example
 backups/
 *.tsbuildinfo
