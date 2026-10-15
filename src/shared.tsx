@@ -39,6 +39,12 @@ export function getLowestPlan(product: Product) {
   }, firstOption);
 }
 
+function getProductFallbackGlyph(value: string) {
+  const trimmed = value.trim();
+  const emoji = trimmed.match(/^\p{Extended_Pictographic}/u)?.[0];
+  return emoji ?? Array.from(trimmed)[0] ?? "•";
+}
+
 export function BrandLink({
   href,
   siteName,
@@ -71,7 +77,11 @@ export function ProductLogo({
   const [failed, setFailed] = useState(!src);
 
   return (
-    <div className="product-logo">
+    <div
+      className="product-logo"
+      role={failed ? "img" : undefined}
+      aria-label={failed ? alt : undefined}
+    >
       {!failed ? (
         <img
           src={src}
@@ -81,10 +91,11 @@ export function ProductLogo({
         />
       ) : null}
       <span
-        className="product-fallback"
+        className="product-fallback product-fallback-glyph"
         style={{ display: failed ? "grid" : "none" }}
+        aria-hidden="true"
       >
-        {fallback}
+        {getProductFallbackGlyph(fallback)}
       </span>
     </div>
   );

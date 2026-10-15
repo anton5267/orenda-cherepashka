@@ -2026,6 +2026,77 @@ async function runAdminChecks(browser) {
     "Discarded mobile settings draft leaked into persisted settings after drawer navigation."
   );
 
+  const responsiveWidths = [320, 375, 390, 768, 1024, 1440, 1920];
+  const adminResponsiveAudit = [];
+  for (const width of responsiveWidths) {
+    await mobilePage.setViewportSize({ width, height: 900 });
+    const layout = await mobilePage.evaluate(() => {
+      const textClips = [...document.querySelectorAll("body *")]
+        .filter((element) => {
+          const rect = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return rect.width > 0 && rect.height > 0 && element.children.length === 0 &&
+            Boolean(element.textContent?.trim()) && !(Number(style.webkitLineClamp) > 0) &&
+            (["hidden", "clip"].includes(style.overflowX) && element.scrollWidth > element.clientWidth + 2 ||
+              ["hidden", "clip"].includes(style.overflowY) && element.scrollHeight > element.clientHeight + 2);
+        })
+        .map((element) => element.textContent.trim().slice(0, 60));
+      const controlsOutsideViewport = [...document.querySelectorAll(
+        "a, button, input, select, textarea"
+      )]
+        .filter((element) => {
+          const rect = element.getBoundingClientRect();
+          return getComputedStyle(element).display !== "none" && rect.width > 0 &&
+            (rect.left < -1 || rect.right > window.innerWidth + 1);
+        })
+        .map((element) => element.textContent.trim().slice(0, 50) || element.tagName);
+      const overlappingGroups = [];
+      for (const selector of [".admin-mobile-bar", ".admin-section-head", ".admin-form-actions", ".editor-toolbar"]) {
+        const group = document.querySelector(selector);
+        if (!group) continue;
+        const items = [...group.children].filter((element) => {
+          const rect = element.getBoundingClientRect();
+          return getComputedStyle(element).display !== "none" && rect.width > 0;
+        });
+        for (let index = 0; index < items.length; index += 1) {
+          for (let otherIndex = index + 1; otherIndex < items.length; otherIndex += 1) {
+            const first = items[index].getBoundingClientRect();
+            const second = items[otherIndex].getBoundingClientRect();
+            if (
+              Math.min(first.right, second.right) - Math.max(first.left, second.left) > 2 &&
+              Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top) > 2
+            ) {
+              overlappingGroups.push(selector);
+            }
+          }
+        }
+      }
+      return {
+        width: window.innerWidth,
+        documentWidth: document.documentElement.scrollWidth,
+        textClips,
+        controlsOutsideViewport,
+        overlappingGroups
+      };
+    });
+
+    assert(
+      layout.documentWidth <= width + 1,
+      `Admin settings overflow horizontally at ${width}px: ${layout.documentWidth}px.`
+    );
+    assert(layout.textClips.length === 0, `Admin settings clip text at ${width}px: ${layout.textClips.join(" | ")}`);
+    assert(
+      layout.controlsOutsideViewport.length === 0,
+      `Admin controls are off-screen at ${width}px: ${layout.controlsOutsideViewport.join(" | ")}`
+    );
+    assert(
+      layout.overlappingGroups.length === 0,
+      `Admin layout items overlap at ${width}px: ${layout.overlappingGroups.join(", ")}`
+    );
+    adminResponsiveAudit.push(width);
+  }
+  await mobilePage.setViewportSize({ width: 390, height: 844 });
+
   const adminMobileShot = await saveScreenshot(mobilePage, "admin-mobile-settings.png");
   let mobileLogoutFailureInjected = false;
   await mobilePage.route("**/api/admin/logout", async (route, request) => {
@@ -2061,7 +2132,7 @@ async function runAdminChecks(browser) {
   await mobilePage.waitForURL(/\/admin\/login/, { timeout: 15000 });
   await mobileContext.close();
 
-  return { adminShot, adminMobileShot };
+  return { adminShot, adminMobileShot, adminResponsiveAudit };
 }
 
 async function main() {

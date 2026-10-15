@@ -2020,9 +2020,17 @@ export function AdminProductsPage() {
               {draft.logo.trim() && logoUrlLooksValid ? (
                 <ProductLogo src={draft.logo} alt={draft.name || "Preview"} fallback="Preview" />
               ) : (
-                <div className="product-logo product-logo-ghost">
-                  <span className="product-fallback" style={{ display: "grid" }}>
-                    Preview
+                <div
+                  className="product-logo product-logo-ghost"
+                  role="img"
+                  aria-label="Попередній перегляд логотипа"
+                >
+                  <span
+                    className="product-fallback product-fallback-glyph"
+                    style={{ display: "grid" }}
+                    aria-hidden="true"
+                  >
+                    P
                   </span>
                 </div>
               )}

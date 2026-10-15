@@ -21,6 +21,7 @@ const browser = await chromium.launch({ headless: true });
 const errors = [];
 const contentSecurityErrors = [];
 const apiSmokeEnabled = process.env.PAGES_API_SMOKE === "true";
+const responsiveViewports = [320, 375, 390, 768, 1024, 1440, 1920];
 let mockedLeadPostCount = 0;
 const mockedLeadPayloads = [];
 
@@ -191,6 +192,131 @@ try {
   )].map((match) => JSON.parse(match[1])).find((schema) => schema["@type"] === "Product");
   assert(gmailSchema?.offers?.every((offer) => offer.priceCurrency === "USD"));
   assert.equal((await fetch(`${baseUrl}legal/privacy/`)).status, 200, "Legal page deep link did not return HTTP 200.");
+
+  const responsiveAudit = [];
+  const responsivePages = [
+    ["home", "", ".product-card"],
+    ["product", "p/grok-super-personal/", ".product-detail-page"],
+    ["privacy", "legal/privacy/", ".legal-page-card"],
+    ["terms", "legal/terms/", ".legal-page-card"],
+    ["refund", "legal/refund/", ".legal-page-card"],
+    ["contacts", "legal/contacts/", ".legal-page-card"]
+  ];
+
+  for (const [pageName, path, readySelector] of responsivePages) {
+    const responsiveResponse = await page.goto(`${baseUrl}${path}`, {
+      waitUntil: "domcontentloaded"
+    });
+    assert.equal(responsiveResponse?.status(), 200, `${pageName} page did not return HTTP 200.`);
+    await page.locator(readySelector).first().waitFor();
+
+    for (const width of responsiveViewports) {
+      await page.setViewportSize({ width, height: 900 });
+      const layout = await page.evaluate(() => {
+        const textClips = [...document.querySelectorAll("body *")]
+          .filter((element) => {
+            const rect = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            const hasLineClamp = Number(style.webkitLineClamp) > 0;
+            if (
+              rect.width === 0 ||
+              rect.height === 0 ||
+              element.children.length > 0 ||
+              !element.textContent?.trim() ||
+              hasLineClamp
+            ) {
+              return false;
+            }
+
+            const clipsHorizontally =
+              ["hidden", "clip"].includes(style.overflowX) &&
+              element.scrollWidth > element.clientWidth + 2;
+            const clipsVertically =
+              ["hidden", "clip"].includes(style.overflowY) &&
+              element.scrollHeight > element.clientHeight + 2;
+            return clipsHorizontally || clipsVertically;
+          })
+          .map((element) => element.textContent.trim().slice(0, 60));
+
+        const controlsOutsideViewport = [...document.querySelectorAll(
+          "a, button, input, select, textarea"
+        )]
+          .filter((element) => {
+            const rect = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            return style.display !== "none" && rect.width > 0 &&
+              (rect.left < -1 || rect.right > window.innerWidth + 1);
+          })
+          .map((element) => element.textContent.trim().slice(0, 50) || element.tagName);
+
+        const overlappingGroups = [];
+        for (const selector of [
+          ".header-row",
+          ".catalog-toolbar",
+          ".product-detail-actions",
+          ".product-detail-plan",
+          ".reviews-spotlight"
+        ]) {
+          const group = document.querySelector(selector);
+          if (!group) continue;
+          const items = [...group.children].filter((element) => {
+            const rect = element.getBoundingClientRect();
+            return getComputedStyle(element).display !== "none" && rect.width > 0;
+          });
+          for (let index = 0; index < items.length; index += 1) {
+            for (let otherIndex = index + 1; otherIndex < items.length; otherIndex += 1) {
+              const first = items[index].getBoundingClientRect();
+              const second = items[otherIndex].getBoundingClientRect();
+              if (
+                Math.min(first.right, second.right) - Math.max(first.left, second.left) > 2 &&
+                Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top) > 2
+              ) {
+                overlappingGroups.push(selector);
+              }
+            }
+          }
+        }
+
+        const grid = document.querySelector(".products-grid");
+        return {
+          viewport: window.innerWidth,
+          documentWidth: document.documentElement.scrollWidth,
+          textClips,
+          controlsOutsideViewport,
+          overlappingGroups,
+          productColumns: grid ? getComputedStyle(grid).gridTemplateColumns.split(" ").length : null
+        };
+      });
+
+      assert(
+        layout.documentWidth <= width + 1,
+        `${pageName} page overflows horizontally at ${width}px: ${layout.documentWidth}px.`
+      );
+      assert.deepEqual(layout.textClips, [], `${pageName} page clips text at ${width}px.`);
+      assert.deepEqual(
+        layout.controlsOutsideViewport,
+        [],
+        `${pageName} page pushes controls off-screen at ${width}px.`
+      );
+      assert.deepEqual(
+        layout.overlappingGroups,
+        [],
+        `${pageName} page has overlapping layout items at ${width}px.`
+      );
+
+      if (pageName === "home") {
+        const expectedColumns = width <= 640 ? 1 : width <= 980 ? 2 : width < 1600 ? 3 : 4;
+        assert.equal(
+          layout.productColumns,
+          expectedColumns,
+          `Catalog should use ${expectedColumns} columns at ${width}px.`
+        );
+      }
+
+      responsiveAudit.push({ page: pageName, width, productColumns: layout.productColumns });
+    }
+  }
+
   assert.deepEqual(errors, [], "Pages reported client-side errors.");
   assert.deepEqual(contentSecurityErrors, [], "Pages reported a Content Security Policy violation.");
 
@@ -205,7 +331,8 @@ try {
     pagesApiFlow: apiSmokeEnabled ? "offline fallback and successful retry" : undefined,
     contentSecurityPolicy: "no violations",
     productDeepLink: "ok",
-    mobileOverflow: false
+    mobileOverflow: false,
+    responsiveAudit
   }, null, 2));
 } finally {
   await browser.close();
