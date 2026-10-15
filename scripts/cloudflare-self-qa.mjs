@@ -24,11 +24,27 @@ for (const script of ["build-cloudflare.mjs", "pages-self-qa.mjs"]) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-const redirects = readFileSync(resolve(rootDir, "dist", "_redirects"), "utf8")
-  .split(/\r?\n/)
-  .map((line) => line.trim())
-  .filter(Boolean);
-assert(redirects.includes("/admin /index.html 200"), "Cloudflare Pages must serve the SPA shell at /admin with HTTP 200.");
-assert(redirects.includes("/admin/* /index.html 200"), "Cloudflare Pages must serve the SPA shell for direct admin routes with HTTP 200.");
+const adminRoutes = [
+  "/admin",
+  "/admin/login",
+  "/admin/reset-password",
+  "/admin/dashboard",
+  "/admin/products",
+  "/admin/categories",
+  "/admin/faqs",
+  "/admin/news",
+  "/admin/reviews",
+  "/admin/leads",
+  "/admin/settings"
+];
+for (const route of adminRoutes) {
+  for (const routeFile of [`${route.slice(1)}.html`, `${route.slice(1)}/index.html`]) {
+    const html = readFileSync(resolve(rootDir, "dist", routeFile), "utf8");
+    assert.match(html, /<meta name="robots" content="noindex,nofollow" \/>/,
+      `Static admin route ${routeFile} must not be indexed.`);
+    assert.ok(html.includes(`rel="canonical" href="${publicSiteUrl}${route}"`),
+      `Static admin route ${routeFile} must use its own canonical URL.`);
+  }
+}
 
-console.log("Cloudflare Pages root-path build, admin-route rewrites, and browser QA passed.");
+console.log("Cloudflare Pages root-path build, static admin deep links, and browser QA passed.");
