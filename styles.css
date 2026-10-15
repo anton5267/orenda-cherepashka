@@ -10,14 +10,27 @@
   --muted: #52665b;
   --line: rgba(23, 40, 33, 0.1);
   --line-strong: rgba(23, 40, 33, 0.16);
+  --control-border: #71877a;
   --brand: #16805b;
   --brand-strong: #116347;
   --brand-button: #146e50;
   --brand-button-hover: #0f5d43;
   --accent: #4b9d83;
+  --accent-text: #246b57;
   --danger: #b84046;
   --success: #14734f;
-  --warning: #93610f;
+  --warning: #80520a;
+  --hot: #a5461d;
+  --success-bg: color-mix(in srgb, var(--success) 12%, var(--surface-soft));
+  --warning-bg: color-mix(in srgb, var(--warning) 10%, var(--surface-soft));
+  --warning-border: color-mix(in srgb, var(--warning) 32%, var(--line));
+  --danger-bg: color-mix(in srgb, var(--danger) 10%, var(--surface-soft));
+  --hot-bg: color-mix(in srgb, var(--hot) 10%, var(--surface-soft));
+  --danger-button: #a8323b;
+  --danger-button-hover: #8f2932;
+  --focus-color: #116347;
+  --selection-bg: #bfead2;
+  --selection-text: #172821;
   --shadow-soft: 0 12px 32px rgba(20, 43, 32, 0.07);
   --shadow-lg: 0 24px 64px rgba(20, 43, 32, 0.14);
   --shadow-md: 0 10px 28px rgba(20, 43, 32, 0.07);
@@ -41,14 +54,22 @@
   --muted: #b2c1b7;
   --line: rgba(237, 244, 238, 0.1);
   --line-strong: rgba(237, 244, 238, 0.17);
+  --control-border: #728379;
   --brand: #72d2a7;
   --brand-strong: #8ae0b9;
   --brand-button: #287c5c;
-  --brand-button-hover: #32906b;
+  --brand-button-hover: #246d52;
   --accent: #7bc9b8;
+  --accent-text: #7bc9b8;
   --danger: #ff8989;
   --success: #7bdaad;
   --warning: #efc46b;
+  --hot: #ffad7b;
+  --danger-button: #9f313b;
+  --danger-button-hover: #852c35;
+  --focus-color: #72d2a7;
+  --selection-bg: #246649;
+  --selection-text: #f1fff7;
   --shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.18);
   --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.34);
   --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.2);
@@ -157,8 +178,8 @@ textarea {
 }
 
 ::selection {
-  color: #fff;
-  background: rgba(14, 165, 106, 0.78);
+  color: var(--selection-text);
+  background: var(--selection-bg);
 }
 
 code {
@@ -341,7 +362,7 @@ code {
 
 .danger-button {
   color: #fff;
-  background: linear-gradient(135deg, #d84f4f 0%, #bd2d5e 100%);
+  background: var(--danger-button);
   box-shadow: 0 18px 30px rgba(216, 79, 79, 0.2);
 }
 
@@ -974,8 +995,8 @@ code {
 }
 
 .badge.hot {
-  background: rgba(255, 128, 92, 0.18);
-  color: #d56c34;
+  background: var(--hot-bg);
+  color: var(--hot);
 }
 
 .badge.savings {
@@ -1385,13 +1406,13 @@ code {
 }
 
 .news-feed-status.is-warning {
-  border-color: rgba(211, 141, 26, 0.3);
-  color: #93620d;
-  background: rgba(211, 141, 26, 0.1);
+  border-color: var(--warning-border);
+  color: var(--warning);
+  background: var(--warning-bg);
 }
 
 [data-theme="dark"] .news-feed-status.is-warning {
-  color: #f1c266;
+  color: var(--warning);
 }
 
 .news-expiry {
@@ -1406,13 +1427,13 @@ code {
 }
 
 .news-expiry.is-expired {
-  border-color: rgba(211, 141, 26, 0.28);
-  color: #93620d;
-  background: rgba(211, 141, 26, 0.11);
+  border-color: var(--warning-border);
+  color: var(--warning);
+  background: var(--warning-bg);
 }
 
 [data-theme="dark"] .news-expiry.is-expired {
-  color: #f1c266;
+  color: var(--warning);
 }
 
 .news-card,
@@ -2042,10 +2063,10 @@ code {
   display: grid;
   gap: 6px;
   padding: 14px 16px;
-  border: 1px solid rgba(211, 141, 26, 0.28);
+  border: 1px solid var(--warning-border);
   border-radius: 18px;
-  color: #b5700b;
-  background: rgba(211, 141, 26, 0.1);
+  color: var(--warning);
+  background: var(--warning-bg);
 }
 
 .admin-mobile-menu-status {
@@ -2053,8 +2074,8 @@ code {
 }
 
 [data-theme="dark"] .admin-unsaved-card {
-  color: #f1c266;
-  background: rgba(211, 141, 26, 0.12);
+  color: var(--warning);
+  background: var(--warning-bg);
 }
 
 .admin-unsaved-card strong {
@@ -2118,10 +2139,10 @@ code {
   width: fit-content;
   min-height: 32px;
   padding: 0 12px;
-  border: 1px solid rgba(211, 141, 26, 0.26);
+  border: 1px solid var(--warning-border);
   border-radius: 999px;
-  color: #b5700b;
-  background: rgba(211, 141, 26, 0.1);
+  color: var(--warning);
+  background: var(--warning-bg);
   font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -2129,8 +2150,8 @@ code {
 }
 
 [data-theme="dark"] .admin-unsaved-pill {
-  color: #f1c266;
-  background: rgba(211, 141, 26, 0.12);
+  color: var(--warning);
+  background: var(--warning-bg);
 }
 
 .admin-mobile-bar-actions {
@@ -2584,9 +2605,9 @@ code {
 }
 
 .notice-success {
-  border-color: rgba(20, 159, 105, 0.22);
+  border-color: color-mix(in srgb, var(--success) 32%, var(--line));
   color: var(--success);
-  background: color-mix(in srgb, rgba(20, 159, 105, 0.12) 70%, var(--surface-soft));
+  background: var(--success-bg);
 }
 
 .notice-success p {
@@ -2594,14 +2615,14 @@ code {
 }
 
 .notice-warning {
-  border-color: rgba(211, 141, 26, 0.26);
-  color: #b5700b;
-  background: rgba(211, 141, 26, 0.1);
+  border-color: var(--warning-border);
+  color: var(--warning);
+  background: var(--warning-bg);
 }
 
 [data-theme="dark"] .notice-warning {
-  color: #f1c266;
-  background: rgba(211, 141, 26, 0.12);
+  color: var(--warning);
+  background: var(--warning-bg);
 }
 
 .notice-warning p {
@@ -2609,9 +2630,9 @@ code {
 }
 
 .notice-danger {
-  border-color: rgba(214, 75, 75, 0.26);
+  border-color: color-mix(in srgb, var(--danger) 32%, var(--line));
   color: var(--danger);
-  background: color-mix(in srgb, rgba(214, 75, 75, 0.12) 72%, var(--surface-soft));
+  background: var(--danger-bg);
 }
 
 .notice-danger p,
@@ -2878,25 +2899,25 @@ textarea.is-invalid {
 
 .status-success {
   color: var(--success);
-  background: rgba(20, 159, 105, 0.12);
+  background: var(--success-bg);
 }
 
 .status-warning {
-  color: #b5700b;
-  background: rgba(211, 141, 26, 0.14);
+  color: var(--warning);
+  background: var(--warning-bg);
 }
 
 [data-theme="dark"] .status-warning {
-  color: #f1c266;
+  color: var(--warning);
 }
 
 .status-danger {
   color: var(--danger);
-  background: rgba(214, 75, 75, 0.12);
+  background: var(--danger-bg);
 }
 
 .status-accent {
-  color: var(--accent);
+  color: var(--accent-text);
   background: rgba(29, 187, 175, 0.12);
 }
 
@@ -3062,12 +3083,12 @@ textarea.is-invalid {
 }
 
 .issue-chip {
-  color: #b5700b;
-  background: rgba(211, 141, 26, 0.12);
+  color: var(--warning);
+  background: var(--warning-bg);
 }
 
 [data-theme="dark"] .issue-chip {
-  color: #f1c266;
+  color: var(--warning);
 }
 
 .list-meta-row {
@@ -3281,15 +3302,15 @@ textarea.is-invalid {
   gap: 8px;
   margin-bottom: 18px;
   padding: 16px 18px;
-  border: 1px solid rgba(211, 141, 26, 0.28);
+  border: 1px solid var(--warning-border);
   border-radius: 22px;
-  color: #b5700b;
-  background: rgba(211, 141, 26, 0.1);
+  color: var(--warning);
+  background: var(--warning-bg);
 }
 
 [data-theme="dark"] .warning-banner {
-  color: #f1c266;
-  background: rgba(211, 141, 26, 0.12);
+  color: var(--warning);
+  background: var(--warning-bg);
 }
 
 .warning-banner p {
@@ -4351,11 +4372,20 @@ body {
   box-shadow: 0 10px 22px color-mix(in srgb, var(--brand-button) 24%, transparent);
 }
 
+.danger-button {
+  color: #fff;
+  background: var(--danger-button);
+}
+
+.danger-button:hover {
+  background: var(--danger-button-hover);
+}
+
 .ghost-button,
 .detail-button,
 .theme-toggle,
 .menu-toggle {
-  border-color: var(--line-strong);
+  border-color: var(--control-border);
   background: var(--surface-strong);
 }
 
@@ -4368,7 +4398,7 @@ body {
 input,
 select,
 textarea {
-  border-color: var(--line-strong);
+  border-color: var(--control-border);
   border-radius: 12px;
   background: var(--surface-strong);
 }
@@ -4379,7 +4409,7 @@ select {
 }
 
 :focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--brand) 58%, transparent);
+  outline: 3px solid var(--focus-color);
   outline-offset: 3px;
   box-shadow: none;
 }
@@ -4540,7 +4570,7 @@ select {
 .filter-pill {
   min-height: 44px;
   padding-inline: 16px;
-  border-color: var(--line-strong);
+  border-color: var(--control-border);
   background: var(--surface-strong);
   font-size: 0.92rem;
 }
@@ -4945,7 +4975,7 @@ select {
 
 /* Shared design-system overrides must stay last so every route uses the same states. */
 :root {
-  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--brand) 30%, transparent);
+  --focus-ring: 0 0 0 3px var(--focus-color);
   --control-height: 48px;
   --control-radius: 14px;
   --card-radius: 20px;
@@ -4954,7 +4984,7 @@ select {
 }
 
 [data-theme="dark"] {
-  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--brand) 36%, transparent);
+  --focus-ring: 0 0 0 3px var(--focus-color);
   --shadow-card: 0 12px 32px rgba(0, 0, 0, 0.18);
 }
 

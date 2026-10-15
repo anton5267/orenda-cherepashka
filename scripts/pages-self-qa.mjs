@@ -24,6 +24,7 @@ const apiSmokeEnabled = process.env.PAGES_API_SMOKE === "true";
 const responsiveViewports = [320, 375, 390, 768, 1024, 1440, 1920];
 let mockedLeadPostCount = 0;
 const mockedLeadPayloads = [];
+let themeContrastAudit;
 
 async function installPagesApiMock(page, pageOrigin) {
   if (!apiSmokeEnabled) return;
@@ -102,6 +103,16 @@ try {
   assert.match(homeHtml, /rel="canonical" href="https:\/\/anton5267\.github\.io\/orenda-cherepashka\//);
   assert.match(homeHtml, /http-equiv="Content-Security-Policy"/);
   assert.match(homeHtml, /connect-src[^\"]+orenda-cherepashka\.onrender\.com/);
+  const themeBootstrapPosition = homeHtml.indexOf('<script id="theme-bootstrap">');
+  const themeStylesheetPosition = homeHtml.indexOf('rel="stylesheet"');
+  const themeAppModulePosition = homeHtml.lastIndexOf('type="module"');
+  assert(themeBootstrapPosition >= 0, "Pre-paint theme bootstrap is missing from the page.");
+  assert(themeStylesheetPosition > themeBootstrapPosition,
+    "Theme preference must be applied before the stylesheet can paint.");
+  assert(themeAppModulePosition > themeBootstrapPosition,
+    "Theme preference must be applied before the app module can render.");
+  assert.match(homeHtml, /script-src[^\"]+'sha256-[A-Za-z0-9+/]+=*'/,
+    "The pre-paint theme script is not authorized by the strict CSP.");
   assert.doesNotMatch(homeHtml, /orenda-cherepashka\.shop/);
   const robotsResponse = await fetch(`${baseUrl}robots.txt`);
   const robotsText = await robotsResponse.text();
@@ -111,6 +122,152 @@ try {
   const sitemapText = await sitemapResponse.text();
   assert.equal(sitemapResponse.status, 200, "GitHub Pages sitemap.xml did not return HTTP 200.");
   assert.equal((sitemapText.match(/<loc>/g) ?? []).length, 40, "Sitemap should contain home, four legal pages and 35 products.");
+
+  const themeContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    colorScheme: "dark"
+  });
+  const themePage = await themeContext.newPage();
+  themePage.on("pageerror", (error) => errors.push(error.message));
+  themePage.on("console", (message) => {
+    if (message.type() === "error" && /Content Security Policy|Refused to (?:connect|load|execute)/i.test(message.text())) {
+      contentSecurityErrors.push(message.text());
+    }
+  });
+
+  try {
+    await themePage.route("**/assets/*.js", (route) => route.fulfill({
+      status: 200,
+      contentType: "text/javascript",
+      body: "export {};"
+    }));
+    const earlyThemeResponse = await themePage.goto(baseUrl, { waitUntil: "domcontentloaded" });
+    assert.equal(earlyThemeResponse?.status(), 200, "Dark system-theme page did not return HTTP 200.");
+    assert.equal(await themePage.evaluate(() => document.documentElement.dataset.theme), "dark",
+      "Dark system preference was not applied before React loaded.");
+    assert.equal(await themePage.locator("#root").evaluate((element) => element.childElementCount), 0,
+      "The pre-paint theme check unexpectedly loaded the React app.");
+
+    await themePage.unroute("**/assets/*.js");
+    await themePage.reload({ waitUntil: "domcontentloaded" });
+    await themePage.locator(".product-card").first().waitFor();
+    assert.equal(await themePage.evaluate(() => document.documentElement.dataset.theme), "dark",
+      "The app did not retain the system dark theme after hydration.");
+
+    const auditThemeContrast = async (expectedTheme) => {
+      const contrast = await themePage.evaluate(() => {
+        const luminance = (color) => {
+          const unitRgb = color.startsWith("color(srgb ");
+          const channels = color.match(/[\d.]+/g)?.slice(0, 3).map((channel) =>
+            Number(channel) * (unitRgb ? 255 : 1)
+          );
+          if (!channels || channels.length !== 3) return 0;
+          const linear = channels.map((channel) => {
+            const normalized = channel / 255;
+            return normalized <= 0.04045
+              ? normalized / 12.92
+              : ((normalized + 0.055) / 1.055) ** 2.4;
+          });
+          return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+        };
+        const ratio = (foreground, background) => {
+          const first = luminance(foreground);
+          const second = luminance(background);
+          return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+        };
+        const rootStyle = getComputedStyle(document.documentElement);
+        const tokenColor = (name) => {
+          const probe = document.createElement("span");
+          probe.style.color = `var(${name})`;
+          document.body.append(probe);
+          const color = getComputedStyle(probe).color;
+          probe.remove();
+          return color;
+        };
+        const surfaceProbe = document.createElement("span");
+        surfaceProbe.style.backgroundColor = "var(--surface-strong)";
+        document.body.append(surfaceProbe);
+        const surface = getComputedStyle(surfaceProbe).backgroundColor;
+        surfaceProbe.remove();
+
+        const warning = document.createElement("div");
+        warning.className = "warning-banner";
+        document.body.append(warning);
+        const warningStyle = getComputedStyle(warning);
+        const warningForeground = warningStyle.color;
+        const warningBackground = warningStyle.backgroundColor;
+        const warningRatio = ratio(warningForeground, warningBackground);
+        warning.remove();
+
+        const hot = document.createElement("span");
+        hot.className = "badge hot";
+        document.body.append(hot);
+        const hotStyle = getComputedStyle(hot);
+        const hotForeground = hotStyle.color;
+        const hotBackground = hotStyle.backgroundColor;
+        const hotRatio = ratio(hotForeground, hotBackground);
+        hot.remove();
+
+        const button = getComputedStyle(document.querySelector(".primary-button"));
+        const danger = document.createElement("button");
+        danger.className = "danger-button";
+        document.body.append(danger);
+        const dangerStyle = getComputedStyle(danger);
+        const dangerRatio = ratio(dangerStyle.color, dangerStyle.backgroundColor);
+        danger.remove();
+
+        return {
+          ink: ratio(tokenColor("--ink"), surface),
+          muted: ratio(tokenColor("--muted"), surface),
+          brand: ratio(tokenColor("--brand-strong"), surface),
+          accent: ratio(tokenColor("--accent-text"), surface),
+          controlBoundary: ratio(tokenColor("--control-border"), surface),
+          primaryButton: ratio(button.color, button.backgroundColor),
+          dangerButton: dangerRatio,
+          warning: warningRatio,
+          warningColors: { foreground: warningForeground, background: warningBackground },
+          hotBadge: hotRatio,
+          hotColors: { foreground: hotForeground, background: hotBackground },
+          colorScheme: rootStyle.colorScheme
+        };
+      });
+
+      assert.equal(contrast.colorScheme, expectedTheme,
+        `${expectedTheme} theme did not set the native browser color scheme.`);
+      for (const role of ["ink", "muted", "brand", "accent", "primaryButton", "dangerButton", "warning", "hotBadge"]) {
+        assert(contrast[role] >= 4.5,
+          `${expectedTheme} ${role} contrast is ${contrast[role].toFixed(2)}:1; expected at least 4.5:1. ${JSON.stringify(contrast)}`);
+      }
+      assert(contrast.controlBoundary >= 3,
+        `${expectedTheme} form-control border contrast is ${contrast.controlBoundary.toFixed(2)}:1; expected at least 3:1.`);
+      return contrast;
+    };
+
+    const darkThemeContrast = await auditThemeContrast("dark");
+    await themePage.emulateMedia({ colorScheme: "light" });
+    await themePage.waitForFunction(() => document.documentElement.dataset.theme === "light");
+    await themePage.waitForTimeout(280);
+    const lightThemeContrast = await auditThemeContrast("light");
+    await themePage.emulateMedia({ colorScheme: "dark" });
+    await themePage.waitForFunction(() => document.documentElement.dataset.theme === "dark");
+    await themePage.waitForTimeout(280);
+
+    await themePage.evaluate(() => localStorage.setItem("theme", "light"));
+    await themePage.reload({ waitUntil: "domcontentloaded" });
+    await themePage.locator(".product-card").first().waitFor();
+    assert.equal(await themePage.evaluate(() => document.documentElement.dataset.theme), "light",
+      "A saved light choice did not override the dark system preference.");
+    await themePage.emulateMedia({ colorScheme: "light" });
+    await themePage.waitForFunction(() => document.documentElement.dataset.theme === "light");
+    await themePage.evaluate(() => localStorage.removeItem("theme"));
+    await themePage.reload({ waitUntil: "domcontentloaded" });
+    assert.equal(await themePage.evaluate(() => document.documentElement.dataset.theme), "light",
+      "Removing the saved choice did not restore the system light theme.");
+
+    themeContrastAudit = { light: lightThemeContrast, dark: darkThemeContrast };
+  } finally {
+    await themeContext.close();
+  }
 
   await page.locator(".product-card").first().waitFor();
   assert.equal(await page.locator(".product-card").count(), 35, "Pages catalog did not render all products.");
@@ -528,6 +685,8 @@ try {
     productSeo: "accurate currency, package price and canonical URL",
     robotsAndSitemap: "200",
     telegramLinks: "contact, news, reviews",
+    themeContrast: themeContrastAudit,
+    systemTheme: "pre-paint, follows OS changes, respects saved choice",
     pagesApiFlow: apiSmokeEnabled ? "offline fallback and successful retry" : undefined,
     contentSecurityPolicy: "no violations",
     productDeepLink: "ok",

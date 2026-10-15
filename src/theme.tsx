@@ -20,9 +20,13 @@ function getStoredPreference(): ThemePreference {
     return "system";
   }
 
-  const stored = window.localStorage.getItem("theme");
-  if (stored === "light" || stored === "dark") {
-    return stored;
+  try {
+    const stored = window.localStorage.getItem("theme");
+    if (stored === "light" || stored === "dark") {
+      return stored;
+    }
+  } catch {
+    // Storage can be disabled; in that case, follow the system theme for this session.
   }
 
   return "system";
@@ -33,9 +37,13 @@ function getSystemTheme(): Theme {
     return "light";
   }
 
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  try {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  } catch {
+    return "light";
+  }
 }
 
 function resolveTheme(preference: ThemePreference): Theme {
@@ -54,15 +62,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
   }, [theme]);
 
   useEffect(() => {
-    if (preference === "system") {
-      window.localStorage.removeItem("theme");
-      return;
+    try {
+      if (preference === "system") {
+        window.localStorage.removeItem("theme");
+      } else {
+        window.localStorage.setItem("theme", preference);
+      }
+    } catch {
+      // The selected theme still works for this session without persistent storage.
     }
-
-    window.localStorage.setItem("theme", preference);
   }, [preference]);
 
   useEffect(() => {
@@ -79,17 +91,34 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => media.removeEventListener("change", listener);
   }, [preference]);
 
+  useEffect(() => {
+    const listener = (event: StorageEvent) => {
+      if (event.key !== "theme" && event.key !== null) {
+        return;
+      }
+
+      const nextPreference =
+        event.newValue === "light" || event.newValue === "dark"
+          ? event.newValue
+          : "system";
+      setPreference(nextPreference);
+      setTheme(resolveTheme(nextPreference));
+    };
+
+    window.addEventListener("storage", listener);
+    return () => window.removeEventListener("storage", listener);
+  }, []);
+
   return (
     <ThemeContext.Provider
       value={{
         theme,
-        toggleTheme: () =>
-          setPreference((current) => {
-            const baseTheme = current === "system" ? theme : current;
-            const nextTheme = baseTheme === "dark" ? "light" : "dark";
-            setTheme(nextTheme);
-            return nextTheme;
-          })
+        toggleTheme: () => {
+          const baseTheme = preference === "system" ? getSystemTheme() : preference;
+          const nextTheme = baseTheme === "dark" ? "light" : "dark";
+          setTheme(nextTheme);
+          setPreference(nextTheme);
+        }
       }}
     >
       {children}

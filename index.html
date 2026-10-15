@@ -6,13 +6,36 @@
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; img-src 'self' https: data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://api.telegram.org https://orenda-cherepashka.onrender.com"
+      content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; img-src 'self' https: data: blob:; script-src 'self' 'sha256-qPV5ZkT6tUPjAjctvw0QG1jso/i6ThG6EWx0U+xnCBM='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://api.telegram.org https://orenda-cherepashka.onrender.com"
     />
+    <meta name="color-scheme" content="light dark" />
     <title>Orenda Cherepashka - Оренда підписок</title>
     <meta
       name="description"
       content="Каталог популярних цифрових підписок із вибором тарифу, новинами та замовленням через Telegram."
     />
+    <script id="theme-bootstrap">
+      let savedTheme = null;
+      try {
+        savedTheme = localStorage.getItem("theme");
+      } catch {
+        // Fall back to the operating system preference when storage is unavailable.
+      }
+      let systemPrefersDark = false;
+      try {
+        systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      } catch {
+        // Light is the safe default on browsers without matchMedia.
+      }
+      const initialTheme =
+        savedTheme === "light" || savedTheme === "dark"
+          ? savedTheme
+          : systemPrefersDark
+            ? "dark"
+            : "light";
+      document.documentElement.dataset.theme = initialTheme;
+      document.documentElement.style.colorScheme = initialTheme;
+    </script>
     <link rel="canonical" href="https://anton5267.github.io/orenda-cherepashka/" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Orenda Cherepashka — оренда підписок" />
