@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-const publicSiteUrl = "https://orenda-cherepashka.pages.dev";
+const publicSiteUrl = "https://orenda-cherepashka-live.pages.dev";
 const renderApiUrl = "https://orenda-cherepashka.onrender.com";
 process.env.NODE_ENV = "development";
 process.env.PUBLIC_SITE_URL = publicSiteUrl;

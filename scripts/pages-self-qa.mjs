@@ -9,7 +9,7 @@ const configuredBasePath = (process.env.PAGES_BASE_PATH ?? "/orenda-cherepashka"
   .trim()
   .replace(/^\/+|\/+$/g, "");
 const routePrefix = configuredBasePath ? `/${configuredBasePath}` : "";
-const publicSiteUrl = (process.env.PUBLIC_SITE_URL ?? "https://orenda-cherepashka.pages.dev")
+const publicSiteUrl = (process.env.PUBLIC_SITE_URL ?? "https://orenda-cherepashka-live.pages.dev")
   .trim()
   .replace(/\/+$/, "");
 const app = express();

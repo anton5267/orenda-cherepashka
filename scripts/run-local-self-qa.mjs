@@ -70,7 +70,7 @@ async function waitForHealth(serverProcess, timeoutMs = 60_000) {
 }
 
 async function verifyPagesApiCors() {
-  const pagesOrigin = "https://orenda-cherepashka.pages.dev";
+  const pagesOrigin = "https://orenda-cherepashka-live.pages.dev";
   const preflight = await fetch(`${baseUrl}/api/leads`, {
     method: "OPTIONS",
     headers: {
@@ -380,7 +380,7 @@ async function main() {
       DATABASE_PATH: resolve(tempDataDir, "site.db"),
       DATABASE_BACKUP_DIR: resolve(tempDataDir, "backups"),
       PUBLIC_SITE_URL: baseUrl,
-      PUBLIC_API_ALLOWED_ORIGINS: "https://orenda-cherepashka.pages.dev",
+      PUBLIC_API_ALLOWED_ORIGINS: "https://orenda-cherepashka-live.pages.dev",
       TELEGRAM_BOT_TOKEN: "",
       TELEGRAM_WEBHOOK_SECRET: "self-qa-telegram-webhook-secret",
       TELEGRAM_CHANNEL_ID: "@arenda_cherepashka",

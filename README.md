@@ -3,7 +3,7 @@
 Full-stack product with:
 - `React + Vite + TypeScript` frontend
 - `Express + SQLite` backend
-- Cloudflare Pages storefront + Supabase-backed admin panel (direct-upload deployment pending)
+- Cloudflare Pages storefront + Supabase-backed admin panel
 - local/dev, CI, and self-host Docker flows
 - product landing pages, SEO metadata, sitemap and legal information pages
 - Telegram contact CTA, channel news webhook and lead notifications
@@ -144,9 +144,9 @@ The ChatGPT Supabase connector still cannot access this new organization; the pr
 
 ## Website hosting and launch
 
-Cloudflare Pages is the selected free static host at `https://orenda-cherepashka.pages.dev`; Supabase is the separate database/API. The `.shop` domain is intentionally out of scope. The Pages project has been created for direct upload. The latest production bundle contains 30 product pages, seven news pages, four legal pages, `robots.txt`, and `sitemap.xml`; it was built against the live Supabase data and scanned for server credentials. The Cloudflare direct-upload dashboard is ready, but publishing the ZIP is pending the owner enabling Chrome's ChatGPT-extension `Allow access to file URLs` permission; the browser blocked local file selection while that setting was off. Once the upload is completed, verify the public `pages.dev` pages and API from a browser.
+The production storefront is live on Cloudflare Pages at [`https://orenda-cherepashka-live.pages.dev`](https://orenda-cherepashka-live.pages.dev/), connected to the GitHub repository's `codex/supabase-platform` branch. Supabase is the separate database/API. The `.shop` domain is intentionally out of scope; the older direct-upload Pages project at `orenda-cherepashka.pages.dev` is unused. The live bundle contains 30 product pages, seven news pages, four legal pages, `robots.txt`, and `sitemap.xml`, built against live Supabase data without server credentials in the client bundle.
 
-Production build configuration: `PUBLIC_SITE_URL=https://orenda-cherepashka.pages.dev`, `VITE_SUPABASE_URL` for the Orenda project, and the project's publishable key as `VITE_SUPABASE_PUBLISHABLE_KEY`. Build command: `npm run build:cloudflare`, output directory: `dist`. The build uses `/` as its base path and generates active-product/news/legal SEO pages, canonical and Open Graph metadata, Product/NewsArticle/Breadcrumb structured data, `robots.txt`, and sitemap. It refuses to publish stale metadata if the configured API cannot be read.
+Production build configuration: `PUBLIC_SITE_URL=https://orenda-cherepashka-live.pages.dev`, `VITE_SUPABASE_URL` for the Orenda project, and the project's publishable key as `VITE_SUPABASE_PUBLISHABLE_KEY`. Build command: `npm run build:cloudflare`, output directory: `dist`. The build uses `/` as its base path and generates active-product/news/legal SEO pages, canonical and Open Graph metadata, Product/NewsArticle/Breadcrumb structured data, `robots.txt`, and sitemap. It refuses to publish stale metadata if the configured API cannot be read.
 
 The public Telegram page is fetched automatically by the public Supabase API and cached briefly; a build also bundles the latest six posts as an offline snapshot. Last verified fetch: 2026-10-15; the newest channel post was dated 2026-09-17, so the site correctly warns that the channel has not posted recently. No scheduled Cloudflare deploy token or Pages build hook is configured. The instant webhook remains optional and requires an owner-managed bot, channel admin access, and server-side Telegram secrets. Never put those values in frontend variables or Git.
 

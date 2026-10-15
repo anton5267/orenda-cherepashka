@@ -65,7 +65,7 @@ export const env = {
     process.env.TELEGRAM_WEBHOOK_BASE_URL,
     process.env.RENDER_EXTERNAL_URL
   ),
-  publicApiAllowedOrigins: (process.env.PUBLIC_API_ALLOWED_ORIGINS ?? "https://orenda-cherepashka.pages.dev")
+  publicApiAllowedOrigins: (process.env.PUBLIC_API_ALLOWED_ORIGINS ?? "https://orenda-cherepashka-live.pages.dev")
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean),

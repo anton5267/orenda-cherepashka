@@ -5,7 +5,7 @@ import { loadNewsForMetadata } from "./newsMetadataSource.js";
 
 const distDir = resolve("dist");
 const indexPath = resolve(distDir, "index.html");
-const pagesBaseUrl = (process.env.PUBLIC_SITE_URL ?? "https://orenda-cherepashka.pages.dev")
+const pagesBaseUrl = (process.env.PUBLIC_SITE_URL ?? "https://orenda-cherepashka-live.pages.dev")
   .trim()
   .replace(/\/+$/, "");
 const legalPages = [

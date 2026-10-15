@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const publicSiteUrl = process.env.PUBLIC_SITE_URL?.trim() || "https://orenda-cherepashka.pages.dev";
+const publicSiteUrl = process.env.PUBLIC_SITE_URL?.trim() || "https://orenda-cherepashka-live.pages.dev";
 const env = {
   ...process.env,
   PAGES_BASE_PATH: "/",
