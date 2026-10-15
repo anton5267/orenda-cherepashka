@@ -241,6 +241,83 @@ async function verifyTelegramWebhook() {
   console.log("Telegram webhook checks passed: secret, channel, idempotency, and edits.");
 }
 
+async function verifyApiErrorBoundaries() {
+  const healthResponse = await fetch(`${baseUrl}/api/health`);
+  assert.equal(healthResponse.status, 200, "Health endpoint did not return HTTP 200.");
+  assert.equal((await healthResponse.json()).ok, true, "Health endpoint returned an invalid payload.");
+  assert.equal(healthResponse.headers.get("cache-control"), "no-store", "API health response was cacheable.");
+  assert.equal(healthResponse.headers.get("x-content-type-options"), "nosniff");
+
+  const privateRead = await fetch(`${baseUrl}/api/admin/products`);
+  assert.equal(privateRead.status, 401, "Unauthenticated admin data was accessible.");
+
+  const invalidDate = await fetch(`${baseUrl}/api/leads`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "QA invalid date",
+      contact: "@qa_contact",
+      neededBy: "2026-02-30",
+      items: [{
+        productId: "chatgpt-plus-shared",
+        pricingOptionId: "chatgpt-plus-shared-plan-1",
+        quantity: 1
+      }]
+    })
+  });
+  assert.equal(invalidDate.status, 400, "An impossible requested date was accepted.");
+
+  const unknownPlan = await fetch(`${baseUrl}/api/leads`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "QA unknown plan",
+      contact: "@qa_contact",
+      items: [{
+        productId: "chatgpt-plus-shared",
+        pricingOptionId: "not-a-real-pricing-option",
+        quantity: 1
+      }]
+    })
+  });
+  assert.equal(unknownPlan.status, 400, "A lead with an unknown tariff was accepted.");
+
+  const malformedJson = await fetch(`${baseUrl}/api/leads`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{\"name\":"
+  });
+  assert.equal(malformedJson.status, 400, "Malformed JSON did not return a client error.");
+  assert.match(malformedJson.headers.get("content-type") ?? "", /application\/json/);
+  assert.match((await malformedJson.json()).message, /Невірний JSON/);
+
+  const rateLimitIp = "203.0.113.77";
+  for (let attempt = 1; attempt <= 10; attempt += 1) {
+    const invalidLead = await fetch(`${baseUrl}/api/leads`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Forwarded-For": rateLimitIp
+      },
+      body: "{}"
+    });
+    assert.equal(invalidLead.status, 400, `Invalid lead attempt ${attempt} was unexpectedly blocked.`);
+  }
+
+  const rateLimitedLead = await fetch(`${baseUrl}/api/leads`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Forwarded-For": rateLimitIp
+    },
+    body: "{}"
+  });
+  assert.equal(rateLimitedLead.status, 429, "The lead endpoint did not enforce its request limit.");
+  assert(Number(rateLimitedLead.headers.get("retry-after")) > 0, "Rate-limited lead response omitted Retry-After.");
+
+  console.log("API boundary checks passed: auth, validation, malformed JSON, security headers, and lead throttling.");
+}
+
 function runCommand(command, args, env = process.env) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -332,6 +409,7 @@ async function main() {
     await waitForHealth(serverProcess);
     await verifyPagesApiCors();
     console.log("GitHub Pages API CORS checks passed.");
+    await verifyApiErrorBoundaries();
     await verifyTelegramWebhook();
     const qaEnv = {
       ...process.env,
