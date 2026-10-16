@@ -37,6 +37,7 @@
     "self-qa": "npm run self-qa:browser && npm run self-qa:admin",
     "self-qa:browser": "node scripts/self-qa.mjs",
     "self-qa:admin": "node scripts/admin-api-smoke.mjs",
+    "self-qa:auth-recovery": "node scripts/auth-recovery-self-qa.mjs",
     "self-qa:admin-recovery": "node scripts/admin-password-recovery-smoke.mjs",
     "self-qa:backup": "node scripts/database-backup-smoke.mjs",
     "self-qa:rate-limits": "node scripts/rate-limit-cleanup-smoke.mjs",

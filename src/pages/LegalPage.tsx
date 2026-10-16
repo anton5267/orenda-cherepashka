@@ -107,6 +107,20 @@ export function LegalPage() {
               <p>{text}</p>
             </section>
           ))}
+          <section>
+            <h2>Підтримка та повернення</h2>
+            <p>
+              З питань замовлення, заміни або повернення звернись до оператора в Telegram.
+              Вкажи сервіс, тариф і номер заявки, якщо він є.
+            </p>
+            <a className="primary-button compact" href="https://t.me/yts_nnn">
+              Написати оператору в Telegram
+            </a>
+            <p>
+              Країна: Україна. Email для звернень:{" "}
+              <a href="mailto:antonlistva47@gmail.com">antonlistva47@gmail.com</a>.
+            </p>
+          </section>
           <a className="primary-button compact" href={homeHref}>Повернутися до каталогу</a>
         </div>
       </main>

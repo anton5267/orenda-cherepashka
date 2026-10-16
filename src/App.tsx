@@ -129,6 +129,20 @@ function PublicAnalyticsLayout() {
   return <Outlet />;
 }
 
+// Dashboard invitations use Site URL. Route them before the storefront can
+// initialize Auth and consume the callback fragment.
+const callbackType = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("type")
+  ?? new URLSearchParams(window.location.search).get("type");
+const siteBasePath = isStaticSite ? staticSiteBasePath : "";
+if (
+  isSupabaseConfigured &&
+  [siteBasePath || "/", `${siteBasePath}/`].includes(window.location.pathname) &&
+  (callbackType === "invite" || callbackType === "recovery")
+) {
+  window.history.replaceState(window.history.state, "",
+    `${siteBasePath}/admin/reset-password${window.location.search}${window.location.hash}`);
+}
+
 const router = createBrowserRouter(
   createRoutesFromElements(
     <>
