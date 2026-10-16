@@ -769,6 +769,10 @@ try {
     });
     assert.equal(responsiveResponse?.status(), 200, `${pageName} page did not return HTTP 200.`);
     await page.locator(readySelector).first().waitFor();
+    assert.equal(await page.locator('link[rel="canonical"]').getAttribute("href"),
+      `${publicSiteUrl}/${path}`, `${pageName} replaced the production canonical with the serving hostname.`);
+    assert.equal(await page.locator('meta[property="og:url"]').getAttribute("content"),
+      `${publicSiteUrl}/${path}`, `${pageName} Open Graph URL must use the configured production address.`);
 
     for (const width of responsiveViewports) {
       await page.setViewportSize({ width, height: 900 });

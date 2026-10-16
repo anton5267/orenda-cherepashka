@@ -84,7 +84,9 @@ function PublicAnalyticsLayout() {
     const routePath = location.pathname === "/"
       ? "/"
       : `${location.pathname.replace(/\/+$/, "")}/`;
-    canonical.href = new URL(`${basePath}${routePath}`, window.location.origin).toString();
+    canonical.href = isStaticSite
+      ? new URL(routePath, canonical.href).toString()
+      : new URL(`${basePath}${routePath}`, window.location.origin).toString();
     const ogUrl = document.head.querySelector<HTMLMetaElement>('meta[property="og:url"]');
     if (ogUrl) ogUrl.content = canonical.href;
     const ogType = document.head.querySelector<HTMLMetaElement>('meta[property="og:type"]');

@@ -57,7 +57,8 @@
     "self-qa:cloudflare": "node scripts/cloudflare-self-qa.mjs",
     "self-qa:local": "node scripts/run-local-self-qa.mjs",
     "supabase:import-content": "tsx scripts/import-supabase-content.ts",
-    "supabase:export-content-sql": "tsx scripts/export-supabase-content-sql.ts"
+    "supabase:export-content-sql": "tsx scripts/export-supabase-content-sql.ts",
+    "supabase:verify-backup": "node scripts/verify-supabase-backup.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.3",
