@@ -35,9 +35,10 @@ export function AdminPasswordRecoveryPage() {
     const callbackHash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const callbackQuery = new URLSearchParams(window.location.search);
     const recoveryError = callbackHash.get("error") || callbackQuery.get("error");
+    const callbackType = callbackHash.get("type") ?? callbackQuery.get("type");
     const isRecoveryCallback =
-      callbackHash.get("type") === "recovery" ||
-      callbackQuery.get("type") === "recovery" ||
+      callbackType === "recovery" ||
+      callbackType === "invite" ||
       callbackQuery.has("code");
 
     void getSupabaseClient()
@@ -92,7 +93,8 @@ export function AdminPasswordRecoveryPage() {
     try {
       const supabase = await getSupabaseClient();
       const redirectTo = new URL("/admin/reset-password", window.location.origin).toString();
-      await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo });
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo });
+      if (resetError) throw resetError;
       setMessage("Якщо для цієї адреси є обліковий запис адміністратора, ми надіслали лист з інструкціями.");
     } catch {
       setError("Не вдалося надіслати запит зараз. Перевір адресу й спробуй ще раз трохи пізніше.");

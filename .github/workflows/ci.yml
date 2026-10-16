@@ -31,6 +31,9 @@ jobs:
       - name: Verify typecheck, build, and local self-QA
         run: npm run ci:verify
 
+      - name: Verify invitation and password recovery with isolated Auth responses
+        run: npm run self-qa:auth-recovery
+
       - name: Upload self-QA artifacts
         if: always()
         uses: actions/upload-artifact@v6
