@@ -26,7 +26,7 @@ The current Supabase Auth Site URL is `https://orenda-cherepashka-live.pages.dev
 
 ## Supabase status
 
-The schema and RLS are present. A read-only audit confirmed 35 products, six categories, five FAQs, one manual news item, and zero leads; thirty products are public. All six application tables have RLS and deny direct CRUD to `anon`/`authenticated`. The empty migration history caused the previous `site_settings already exists` check failure. On 2026-10-16 the live schema was compared with migrations in isolated PostgreSQL; both applied versions were recorded through guarded history-only SQL equivalent to migration repair. No application DDL or data was replayed. Verify the next main check separately.
+The schema and RLS are present. A read-only audit confirmed 35 products, six categories, five FAQs, one manual news item, and zero leads; thirty products are public. All six application tables have RLS and deny direct CRUD to `anon`/`authenticated`. The empty migration history caused the previous `site_settings already exists` check failure. On 2026-10-16 the live schema was compared with migrations in isolated PostgreSQL; both applied versions were recorded through guarded history-only SQL equivalent to migration repair. No application DDL or data was replayed. The following main checks at `7fe165b` and `720c129` passed.
 
 Deployed functions:
 
