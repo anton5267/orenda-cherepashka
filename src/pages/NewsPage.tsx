@@ -68,7 +68,10 @@ export function NewsPage() {
     const title = `${item.title} — Orenda Cherepashka`;
     const description = item.content.replace(/\s+/g, " ").trim().slice(0, 180) || item.dateLabel;
     const pagePath = `${isStaticSite ? staticSiteBasePath : ""}/news/${encodeURIComponent(item.id)}/`;
-    const canonicalUrl = new URL(pagePath, window.location.origin).toString();
+    const canonicalUrl = isStaticSite
+      ? document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href
+        ?? new URL(pagePath, window.location.origin).toString()
+      : new URL(pagePath, window.location.origin).toString();
     document.title = title;
     setMeta("description", description);
     setProperty("og:title", title);
