@@ -1,5 +1,6 @@
 import { compareSync } from "bcryptjs";
 import express from "express";
+import { rateLimit as expressRateLimit } from "express-rate-limit";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
@@ -369,7 +370,13 @@ app.get("/api/admin/analytics", requireAdmin, (_request, response) => {
 
 app.post(
   "/api/admin/login",
-  rateLimit({ key: "admin-login-attempt", max: 120, windowMs: 15 * 60 * 1000 }),
+  expressRateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 120,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: { message: "Забагато запитів. Спробуй через 15 хвилин." }
+  }),
   (request, response) => {
   if (!loginAttemptAllowed(request, response)) {
     return;
