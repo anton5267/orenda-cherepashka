@@ -341,6 +341,7 @@ export function HomePage() {
   const [leadTelegramDraftUrl, setLeadTelegramDraftUrl] = useState("");
   const [leadSubmitError, setLeadSubmitError] = useState("");
   const [leadErrors, setLeadErrors] = useState<LeadFormErrors>({});
+  const [appliedUrlSelection, setAppliedUrlSelection] = useState<string | null>(null);
   const [leadValues, setLeadValues] = useState<LeadFormState>({
     name: "",
     contact: "",
@@ -819,6 +820,7 @@ export function HomePage() {
     }
 
     lastUrlSelectionRef.current = signature;
+    setAppliedUrlSelection(signature);
 
     if (!selectedProductParam) {
       setLeadValues((current) =>
@@ -852,6 +854,12 @@ export function HomePage() {
   }, [products, selectedPlanParam, selectedProductParam]);
 
   useEffect(() => {
+    // Commit the URL's selection to the form before writing form state back.
+    // The catalog loads asynchronously, so an empty initial form is not a reset.
+    if (appliedUrlSelection !== `${selectedProductParam}:${selectedPlanParam}`) {
+      return;
+    }
+
     if (
       selectedProductParam === leadValues.productId &&
       selectedPlanParam === leadValues.pricingOptionId
@@ -875,6 +883,7 @@ export function HomePage() {
 
     setSearchParams(next, { replace: true });
   }, [
+    appliedUrlSelection,
     leadValues.pricingOptionId,
     leadValues.productId,
     searchParams,

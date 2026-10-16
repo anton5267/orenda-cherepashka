@@ -727,6 +727,36 @@ try {
   assert.equal(productSchema.offers[1].priceCurrency, "UAH");
   assert.equal("availability" in productSchema.offers[1], false, "Product metadata claimed unverified stock.");
 
+  const orderLink = page.getByRole("link", { name: "Замовити через заявку", exact: true });
+  const orderUrl = new URL(await orderLink.getAttribute("href"), baseUrl);
+  const expectedSelection = {
+    product: orderUrl.searchParams.get("product"),
+    plan: orderUrl.searchParams.get("plan")
+  };
+  assert(expectedSelection.product && expectedSelection.plan, "Product order link omitted its selection.");
+  await orderLink.click();
+  const waitForOrderSelection = () => page.waitForFunction(({ product, plan }) =>
+    document.querySelector("#lead-product")?.value === product &&
+    document.querySelector("#lead-pricing-option")?.value === plan,
+  expectedSelection, { timeout: 15000 });
+  await waitForOrderSelection();
+  assert.equal(new URL(page.url()).searchParams.get("product"), expectedSelection.product,
+    "Loading the catalog erased the product supplied by the order link.");
+  assert.equal(new URL(page.url()).searchParams.get("plan"), expectedSelection.plan,
+    "Loading the catalog erased the plan supplied by the order link.");
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await waitForOrderSelection();
+  const otherPlan = await page.locator("#lead-pricing-option option").evaluateAll(
+    (options, currentPlan) => options.map((option) => option.value)
+      .find((value) => value && value !== currentPlan), expectedSelection.plan
+  );
+  assert(otherPlan, "The product fixture needs a second plan to check changing the selection.");
+  await page.locator("#lead-pricing-option").selectOption(otherPlan);
+  await page.waitForFunction((plan) => new URL(location.href).searchParams.get("plan") === plan, otherPlan);
+  expectedSelection.plan = otherPlan;
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await waitForOrderSelection();
+
   const gmailHtml = await (await fetch(`${baseUrl}p/gmail-mailbox/`)).text();
   const gmailSchema = [...gmailHtml.matchAll(
     /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g
