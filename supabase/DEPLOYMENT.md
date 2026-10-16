@@ -44,7 +44,7 @@ A snapshot of all six application tables was restored and compared in isolated P
 
 1. Complete real email recovery if required by the owner; login/logout/relogin and saving/restoring a harmless settings edit already passed.
 2. Recheck production routes after each new deployment; `main` and automatic production deployment are already configured.
-3. Provide the seller's legal identity/contact and review the privacy/terms wording before accepting real customer data.
+3. Review the privacy/terms wording before accepting real customer data. The owner supplied the seller's FOP name and Odesa correspondence address for publication; registration details and legal compliance were not independently verified. Service-specific replacement/refund terms are confirmed by the operator before payment.
 4. Do not create a production test lead without a new owner instruction; the owner declined this test on 2026-10-16.
 5. Recheck the Search Console sitemap report. The production XML contains 42 correct URLs. Submission and Google's Live Test succeeded on 2026-10-16, but the sitemap report still said it could not fetch the file. Live Test success does not establish indexing.
 6. If instant Telegram webhook delivery is desired, add a bot as channel admin and set its token, webhook secret, and channel ID in Supabase only. Public-feed polling already works without a bot.
