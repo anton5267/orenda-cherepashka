@@ -1,5 +1,7 @@
 # Orenda Cherepashka
 
+Поточний стан, фактичні перевірки та пріоритети запуску: [документація проєкту](docs/PROJECT_STATUS.md) (оновлено 16.10.2026).
+
 Full-stack product with:
 - `React + Vite + TypeScript` frontend
 - `Express + SQLite` backend
