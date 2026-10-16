@@ -369,6 +369,7 @@ app.get("/api/admin/analytics", requireAdmin, (_request, response) => {
 
 app.post(
   "/api/admin/login",
+  rateLimit({ key: "admin-login-attempt", max: 120, windowMs: 15 * 60 * 1000 }),
   (request, response) => {
   if (!loginAttemptAllowed(request, response)) {
     return;
@@ -687,12 +688,13 @@ app.get("/robots.txt", (_request, response) => {
 
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(distDir, { index: false }));
+  const indexHtml = readFileSync(resolve(distDir, "index.html"), "utf8");
 
   app.get("/p/:slug", (request, response, next) => {
     try {
       const product = getProductBySlug(getRouteParam(request, "slug"));
       const html = withPublicSiteBase(
-        readFileSync(resolve(distDir, "index.html"), "utf8"),
+        indexHtml,
         `/p/${product.slug}`,
         { title: `${product.name} — Orenda Cherepashka`, description: product.summary }
       );
@@ -747,7 +749,7 @@ if (process.env.NODE_ENV === "production") {
     }
 
     response.type("html").send(
-      withPublicSiteBase(readFileSync(resolve(distDir, "index.html"), "utf8"))
+      withPublicSiteBase(indexHtml)
     );
   });
 }

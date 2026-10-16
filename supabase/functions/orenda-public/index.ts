@@ -103,21 +103,42 @@ async function readPublicContent(client: ReturnType<typeof serviceClient>, kind:
 }
 
 function decodeTelegramEntities(value: string): string {
-  return value
-    .replace(/&nbsp;|&#160;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&#(\d+);/g, (match, digits: string) => {
-      const point = Number(digits);
-      return Number.isInteger(point) && point >= 0 && point <= 0x10ffff ? String.fromCodePoint(point) : match;
-    })
-    .replace(/&#x([\da-f]+);/gi, (match, digits: string) => {
-      const point = parseInt(digits, 16);
-      return Number.isInteger(point) && point >= 0 && point <= 0x10ffff ? String.fromCodePoint(point) : match;
-    });
+  const named: Record<string, string> = { nbsp: " ", amp: "&", quot: '"', apos: "'", lt: "<", gt: ">" };
+  return value.replace(/&(?:nbsp|amp|quot|apos|lt|gt|#(?:x[\da-f]+|\d+));/gi, (entity) => {
+    const name = entity.slice(1, -1).toLowerCase();
+    if (!name.startsWith("#")) return named[name];
+    const point = name.startsWith("#x") ? Number.parseInt(name.slice(2), 16) : Number(name.slice(1));
+    return Number.isInteger(point) && point >= 0 && point <= 0x10ffff
+      ? String.fromCodePoint(point) : entity;
+  });
+}
+
+function telegramMarkupToText(value: string): string {
+  let text = "";
+  let tag = "";
+  let quote = "";
+  let inTag = false;
+  for (const character of value) {
+    if (!inTag) {
+      if (character === "<") { inTag = true; tag = ""; }
+      else text += character;
+    } else if (quote) {
+      if (character === quote) quote = "";
+      tag += character;
+    } else if (character === '"' || character === "'") {
+      quote = character;
+      tag += character;
+    } else if (character === ">") {
+      const match = /^\s*(\/?)\s*([a-z][\w:-]*)/i.exec(tag);
+      if (match && (match[2].toLowerCase() === "br" || (match[1] && ["p", "li", "blockquote", "div"].includes(match[2].toLowerCase())))) text += "\n";
+      inTag = false;
+    } else {
+      tag += character;
+    }
+  }
+  return decodeTelegramEntities(text)
+    .replace(/[\t\f\v ]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").trim();
 }
 
 function parseTelegramPublicHtml(html: string): PublicTelegramNewsItem[] {
@@ -141,10 +162,7 @@ function parseTelegramPublicHtml(html: string): PublicTelegramNewsItem[] {
     const openEnd = markup.indexOf(">");
     const closeAt = markup.indexOf("</div>", openEnd + 1);
     if (openEnd < 0 || closeAt < 0) continue;
-    const message = decodeTelegramEntities(markup.slice(openEnd + 1, closeAt)
-      .replace(/<br\s*\/?\s*>/gi, "\n").replace(/<[^>]*>/g, ""))
-      .replace(/[\t\f\v ]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n")
-      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").trim();
+    const message = telegramMarkupToText(markup.slice(openEnd + 1, closeAt));
     if (!message) continue;
     const [firstLine, ...rest] = message.split("\n").map((line) => line.trim()).filter(Boolean);
     if (!firstLine) continue;

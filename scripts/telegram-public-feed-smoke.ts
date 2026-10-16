@@ -20,6 +20,12 @@ assert.equal(parsed[0].sourceType, "telegram");
 assert.equal(parsed[0].content, "Деталі & умови посилання");
 assert.deepEqual(parsed.map((item) => item.sortOrder), [0, 1]);
 
+const hostileMarkup = makePost(19, "2026-10-14T12:00:00Z", "Тест <scr<script>ipt> &amp;lt;script&amp;gt;");
+const hostileParsed = parsePublicTelegramPosts(hostileMarkup, "arenda_cherepashka", fixedNow);
+assert.equal(hostileParsed.length, 1);
+assert.equal(hostileParsed[0].title.includes("<script>"), false);
+assert.equal(hostileParsed[0].title.includes("&lt;script&gt;"), true);
+
 const oversized = Array.from({ length: 8 }, (_, index) =>
   makePost(index + 100, new Date(Date.UTC(2026, 9, index + 1)).toISOString(), `Новина ${index + 1}`)
 ).join("");

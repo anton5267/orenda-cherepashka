@@ -13,9 +13,10 @@ const publicSiteUrl = (process.env.PUBLIC_SITE_URL ?? "https://orenda-cherepashk
   .trim()
   .replace(/\/+$/, "");
 const app = express();
+const indexHtml = readFileSync(resolve(distDir, "index.html"));
 app.use(routePrefix || "/", express.static(distDir, { extensions: ["html"] }));
 app.use(routePrefix || "/", (_request, response) => {
-  response.sendFile(resolve(distDir, "index.html"));
+  response.type("html").send(indexHtml);
 });
 
 const server = await new Promise((resolveServer, reject) => {

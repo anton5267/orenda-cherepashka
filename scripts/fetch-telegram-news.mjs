@@ -8,24 +8,40 @@ const feedUrl = `https://t.me/s/${channel}`;
 const outputPath = resolve(rootDir, "public/telegram-news.json");
 
 function decodeEntities(value) {
-  return value
-    .replace(/&nbsp;|&#160;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&#(\d+);/g, (_match, decimal) => String.fromCodePoint(Number(decimal)))
-    .replace(/&#x([\da-f]+);/gi, (_match, hex) => String.fromCodePoint(parseInt(hex, 16)));
+  const named = { nbsp: " ", amp: "&", quot: '"', apos: "'", lt: "<", gt: ">" };
+  return value.replace(/&(?:nbsp|amp|quot|apos|lt|gt|#(?:x[\da-f]+|\d+));/gi, (entity) => {
+    const name = entity.slice(1, -1).toLowerCase();
+    if (!name.startsWith("#")) return named[name];
+    const point = name.startsWith("#x") ? Number.parseInt(name.slice(2), 16) : Number(name.slice(1));
+    return Number.isInteger(point) && point >= 0 && point <= 0x10ffff
+      ? String.fromCodePoint(point) : entity;
+  });
 }
 
 function htmlToText(value) {
-  return decodeEntities(
-    value
-      .replace(/<br\s*\/?\s*>/gi, "\n")
-      .replace(/<\/(?:p|li|blockquote|div)>/gi, "\n")
-      .replace(/<[^>]*>/g, "")
-  )
+  let text = "";
+  let tag = "";
+  let quote = "";
+  let inTag = false;
+  for (const character of value) {
+    if (!inTag) {
+      if (character === "<") { inTag = true; tag = ""; }
+      else text += character;
+    } else if (quote) {
+      if (character === quote) quote = "";
+      tag += character;
+    } else if (character === '"' || character === "'") {
+      quote = character;
+      tag += character;
+    } else if (character === ">") {
+      const match = /^\s*(\/?)\s*([a-z][\w:-]*)/i.exec(tag);
+      if (match && (match[2].toLowerCase() === "br" || (match[1] && ["p", "li", "blockquote", "div"].includes(match[2].toLowerCase())))) text += "\n";
+      inTag = false;
+    } else {
+      tag += character;
+    }
+  }
+  return decodeEntities(text)
     .replace(/[\t\f\v ]+/g, " ")
     .replace(/ *\n */g, "\n")
     .replace(/\n{3,}/g, "\n\n")

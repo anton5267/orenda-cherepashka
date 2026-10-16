@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import process from "node:process";
+import { randomInt } from "node:crypto";
 
 export const dockerCommand = process.platform === "win32" ? "docker.exe" : "docker";
 export const composeEnvFile = resolve(".env.docker");
@@ -112,7 +113,7 @@ export function createRandomSecret(length = 32) {
   let value = "";
 
   for (let index = 0; index < length; index += 1) {
-    value += alphabet[Math.floor(Math.random() * alphabet.length)];
+    value += alphabet[randomInt(alphabet.length)];
   }
 
   return value;
