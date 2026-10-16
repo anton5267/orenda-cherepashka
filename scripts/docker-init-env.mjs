@@ -20,4 +20,4 @@ writeDockerEnv({
 });
 
 console.log(`Created ${composeEnvFile}`);
-console.log(`Admin password: ${adminPassword}`);
+console.log("Admin password was written to .env.docker. Keep that file private.");

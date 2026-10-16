@@ -446,7 +446,15 @@ export function ProductLogo({
   alt: string;
   fallback: string;
 }) {
-  const [failed, setFailed] = useState(!src);
+  let imageUrl = "";
+  try {
+    const parsed = new URL(src);
+    if (parsed.protocol === "https:" || parsed.protocol === "http:") imageUrl = parsed.href;
+  } catch {
+    // An invalid or relative URL falls back to the product glyph.
+  }
+  const [failed, setFailed] = useState(!imageUrl);
+  useEffect(() => setFailed(!imageUrl), [imageUrl]);
 
   return (
     <div
@@ -456,7 +464,7 @@ export function ProductLogo({
     >
       {!failed ? (
         <img
-          src={src}
+          src={imageUrl}
           alt={alt}
           loading="lazy"
           decoding="async"

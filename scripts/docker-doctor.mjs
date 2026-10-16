@@ -92,11 +92,11 @@ async function main() {
       addCheck(
         "admin-password",
         "warn",
-        `ADMIN_PASSWORD looks weak (${envValues.ADMIN_PASSWORD.length} chars).`,
+        "ADMIN_PASSWORD looks weak.",
         "Use a stronger password before exposing the service outside localhost."
       );
     } else {
-      addCheck("admin-password", "ok", `ADMIN_PASSWORD length: ${envValues.ADMIN_PASSWORD.length}`);
+      addCheck("admin-password", "ok", "ADMIN_PASSWORD is configured.");
     }
 
     addCheck(
