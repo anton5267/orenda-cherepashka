@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,follow" />
+    <link rel="canonical" href="https://orenda-cherepashka-live.pages.dev/" />
+    <meta http-equiv="refresh" content="0;url=https://orenda-cherepashka-live.pages.dev/" />
+    <title>Orenda Cherepashka — нова адреса</title>
+    <script>
+      const legacyBase = "/orenda-cherepashka";
+      const currentPath = window.location.pathname;
+      const route = currentPath === legacyBase || currentPath === `${legacyBase}/`
+        ? "/"
+        : currentPath.startsWith(`${legacyBase}/`)
+          ? currentPath.slice(legacyBase.length)
+          : "/";
+      window.location.replace(`https://orenda-cherepashka-live.pages.dev${route}${window.location.search}${window.location.hash}`);
+    </script>
+    <style>
+      body { max-width: 40rem; margin: 15vh auto; padding: 1.5rem; font: 1.1rem/1.6 system-ui, sans-serif; color: #14352a; background: #f6faf7; }
+      a { color: #146440; text-underline-offset: .2em; }
+    </style>
+  </head>
+  <body>
+    <h1>Ми переїхали</h1>
+    <p>Актуальний каталог і підтримка доступні на основному сайті.</p>
+    <p><a href="https://orenda-cherepashka-live.pages.dev/">Перейти до Orenda Cherepashka</a></p>
+  </body>
+</html>
