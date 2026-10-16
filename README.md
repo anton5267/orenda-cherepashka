@@ -2,6 +2,8 @@
 
 **Актуальний код — гілка `main` цього репозиторію.** Cloudflare Pages автоматично публікує її на [основному сайті](https://orenda-cherepashka-live.pages.dev/). [Поточний стан і межі перевірок](docs/PROJECT_STATUS.md), [розгортання Supabase/Cloudflare](supabase/DEPLOYMENT.md), [резервування даних](supabase/BACKUP.md) і [пояснення локальних копій та вмісту GitHub](docs/REPOSITORY_GUIDE.md) описані окремо.
 
+Вразливості повідомляйте приватно за [політикою безпеки](.github/SECURITY.md).
+
 Full-stack product with:
 - `React + Vite + TypeScript` frontend
 - `Express + SQLite` backend
