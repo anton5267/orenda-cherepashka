@@ -1,10 +1,11 @@
 # Orenda deployment runbook
 
 The root [README](../README.md) records the current deployment and remaining owner actions.
+For a dated distinction between implemented code, verified live behavior, and launch blockers, see [Project Status](../docs/PROJECT_STATUS.md).
 
 ## Production layout
 
-- Storefront: Cloudflare Pages, [`https://orenda-cherepashka-live.pages.dev`](https://orenda-cherepashka-live.pages.dev/) (Free; Git-integrated, deployed from `codex/supabase-platform`).
+- Storefront: Cloudflare Pages, [`https://orenda-cherepashka-live.pages.dev`](https://orenda-cherepashka-live.pages.dev/) (Free; Git-integrated). The current `main` build is still a preview deployment; set `main` as the Pages production branch before treating this hostname as up to date.
 - Data/API: Orenda Supabase Free project, ref `suzmndaqwchayddrulzc` in Frankfurt.
 - The `.shop` domain, the unused direct-upload project `orenda-cherepashka.pages.dev`, legacy Fly/Render deployments, and unrelated `german-ai-trainer` Supabase project are out of scope.
 
@@ -17,7 +18,7 @@ The production bundle is built with:
 - `VITE_SUPABASE_PUBLISHABLE_KEY=<project publishable key>`
 - `npm run build:cloudflare` → `dist`
 
-Cloudflare builds and deploys from the connected GitHub branch with `npm run build:cloudflare` → `dist`. The live homepage, product/news/legal routes, `robots.txt`, and sitemap have been checked. Do not place a Supabase secret/service-role key or Telegram bot token in a `VITE_` variable.
+Cloudflare builds from the connected GitHub branch with `npm run build:cloudflare` → `dist`. The `main` preview contains the current product/news/legal routes, `robots.txt`, and sitemap. As of 2026-10-16, the production hostname still returned 404 for `/admin/login`, so preview success must not be reported as production success. Do not place a Supabase secret/service-role key or Telegram bot token in a `VITE_` variable.
 
 The current Supabase Auth Site URL is `https://orenda-cherepashka-live.pages.dev`; the only allowed redirect is the exact password-recovery callback at `/admin/reset-password`. The storefront includes a generic, anti-enumeration password recovery flow. Public sign-up remains disabled.
 
@@ -37,10 +38,11 @@ Live checks already run: public API health 200, products 30, news 7, unauthentic
 
 ## Remaining owner actions
 
-1. Create/accept the owner Auth invitation (if approved) and set the password through Supabase's email flow; then sign in at `/admin` and verify editing.
-2. If instant Telegram webhook delivery is desired, add a bot as channel admin and set its token, webhook secret, and channel ID in Supabase only. Public-feed polling already works without a bot.
+1. Set `main` as the Cloudflare Pages production branch and enable automatic production deployments; verify the direct production admin and content routes.
+2. Create/accept the owner Auth invitation (if approved) and set the password through Supabase's email flow; then sign in at `/admin` and verify editing.
 3. Provide the seller's legal identity/contact and review the privacy/terms wording before accepting real customer data.
-4. Recheck the Search Console sitemap report after processing time. Ownership of `https://orenda-cherepashka-live.pages.dev/` is verified and `/sitemap.xml` is submitted; the current report says it could not fetch the sitemap, while the live URL check succeeded.
-5. After admin access is ready, submit and verify one real end-to-end lead only with the owner's approval; no production lead has been created as a test.
+4. After admin access is ready, submit and verify one end-to-end test lead only with the owner's approval; no production lead has been created as a test.
+5. Recheck the Search Console sitemap report after the production branch fix. Ownership of `https://orenda-cherepashka-live.pages.dev/` was previously verified and `/sitemap.xml` submitted, but the report said it could not fetch the sitemap.
+6. If instant Telegram webhook delivery is desired, add a bot as channel admin and set its token, webhook secret, and channel ID in Supabase only. Public-feed polling already works without a bot.
 
 Do not commit secrets, upload them as frontend variables, or send them in chat. The Supabase Free project may pause after inactivity; see the [Free project pausing guide](https://supabase.com/docs/guides/platform/free-project-pausing).
