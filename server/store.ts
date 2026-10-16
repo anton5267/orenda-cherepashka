@@ -244,12 +244,13 @@ function normalizeIdList(value: unknown) {
 }
 
 function slugify(value: string) {
-  return value
+  let slug = value
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9а-яіїєґ]+/giu, "-")
-    .replace(/^-+/, "")
-    .replace(/-+$/, "");
+    .replace(/[^a-z0-9а-яіїєґ]+/giu, "-");
+  if (slug.startsWith("-")) slug = slug.slice(1);
+  if (slug.endsWith("-")) slug = slug.slice(0, -1);
+  return slug;
 }
 
 function parseDetails(detailsJson: string) {
