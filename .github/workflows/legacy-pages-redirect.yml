@@ -1,0 +1,41 @@
+name: Redirect legacy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - legacy-pages/**
+      - .github/workflows/legacy-pages-redirect.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: legacy-github-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare redirect for the homepage and old deep links
+        run: |
+          mkdir legacy-pages-dist
+          cp legacy-pages/index.html legacy-pages-dist/index.html
+          cp legacy-pages/index.html legacy-pages-dist/404.html
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: legacy-pages-dist
+      - name: Deploy redirect
+        id: deployment
+        uses: actions/deploy-pages@v5
